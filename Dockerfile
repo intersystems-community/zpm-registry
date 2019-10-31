@@ -20,9 +20,9 @@ RUN \
   set sc = ##class(App.Installer).setup() \
   zn "%SYS" \
   write "Create web application ..." \
-  set webName = "/person" \
+  set webName = "/registry" \
   set webProperties("DispatchClass") = "Sample.PersonREST" \
-  set webProperties("NameSpace") = "IRISAPP" \
+  set webProperties("NameSpace") = "REGISTRY" \
   set webProperties("Enabled") = 1 \
   set webProperties("AutheEnabled") = 32 \
   set sc = ##class(Security.Applications).Create(webName, .webProperties) \
