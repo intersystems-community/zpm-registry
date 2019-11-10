@@ -95,14 +95,14 @@ ClassMethod ReportHttpStatusCode(pHttpStatus, pSC As %Status = {$$$OK}) As %Stat
   Set %response.Status=pHttpStatus
   
   If $$$ISERR(pSC) Do ..outputStatus(pSC)
-  
+  /*
   If (+pHttpStatus>=400) {
     Set %response.ContentType = "application/json"
     SET pResult = {
       "error": ($PIECE(pHttpStatus, " ", 2, *))
     }
     Return ..%ProcessResult($$$OK, pResult)
-  }
+  }*/
       
   Return $$$OK
 }

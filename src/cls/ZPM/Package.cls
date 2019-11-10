@@ -23,7 +23,7 @@ Property license As %String;
 
 Property homePage As %String;
 
-Property repository As %String;
+Property repository As %String(MAXLEN = 200);
 
 Property dependencies As array Of %String;
 
@@ -159,7 +159,7 @@ ClassMethod Populate(Path As %String, kill = 0)
   }
 }
 
-ClassMethod LoadPackage(Path As %String) As %Status
+ClassMethod LoadPackage(Path As %String, repository As %String = "", silent As %Boolean = 0) As %Status
 {
   SET tStream = ##class(%Stream.FileCharacter).%New()
   SET moduleFile = ##class(%File).NormalizeFilename("module.xml", Path)
@@ -167,9 +167,10 @@ ClassMethod LoadPackage(Path As %String) As %Status
     SET Path = ##class(%File).NormalizeDirectory("latest", Path)
     SET moduleFile = ##class(%File).NormalizeFilename("module.xml", Path)
   }
-
-  WRITE !!,"Path: ",Path
-  WRITE !!,"ModuleFile: ",moduleFile
+  If ('silent) {
+    WRITE !!,"Path: ",Path
+    WRITE !!,"ModuleFile: ",moduleFile
+  }
   SET tSC = ##class(%XML.XPATH.Document).CreateFromFile(moduleFile, .tDocument)
   IF $$$ISERR(tSC) Return tSC
 
@@ -178,13 +179,17 @@ ClassMethod LoadPackage(Path As %String) As %Status
 
   SET name = tRes.GetAt(1).Value
   SET name = $$$lcase(name)
-  WRITE !,"Name: ", name
+  If ('silent) {
+    WRITE !,"Name: ", name
+  }
 
   SET tSC=tDocument.EvaluateExpression("/Export/Document/Module/Version", "text()", .tRes)
   IF $$$ISERR(tSC) Return tSC
 
   SET version = tRes.GetAt(1).Value
-  WRITE !,"Version: ", version
+  If ('silent) {
+    WRITE !,"Version: ", version
+  }
 
   SET archive = ##class(%Stream.FileBinary).%New()
   SET archiveFileName = ##class(%File).TempFilename("tgz")
@@ -194,11 +199,14 @@ ClassMethod LoadPackage(Path As %String) As %Status
 
   SET args = 0
   SET res = $zf(-100, "", "tar", "--exclude=.git", "-zcvf", archiveFileName, "-C",  Path, ".")
-  WRITE "ArchiveSize: " _ archive.Size
-  
+  If ('silent) {
+    WRITE "ArchiveSize: " _ archive.Size
+  }
+
   do ..%DeleteId(name _ "||" _version)
   SET package = ..%New()
   SET package.name = name
+  Set package.repository = repository
   SET package.version = version
   SET package.package = archive
   set module = ##class(%Stream.FileCharacter).%New()
@@ -206,9 +214,104 @@ ClassMethod LoadPackage(Path As %String) As %Status
   Set package.manifest = module
   SET hash = $$$lcase(##class(%File).SHA1Hash(archiveFileName, 1))  
   SET package.hash = hash
-  WRITE !,"ArchiveHash: " _ hash
-
+  If ('silent) {
+    WRITE !,"ArchiveHash: " _ hash
+  }
   RETURN package.%Save()
+}
+
+ClassMethod GetPackageNameFromRepositoryURL(url As %String) As %String
+{
+  Return $PIECE(url, "/", *-1)
+}
+
+ClassMethod DownloadPackageFromGitHub(url As %String) As %String
+{
+  SET url = url _ "archive/master.tar.gz"
+  Do ##class(%Net.URLParser).Parse(url, .tComponents)
+  Set ht = ##class(%Net.HttpRequest).%New()
+  Set ht.Server = tComponents("host")
+  If $get(tComponents("scheme"))="https" {
+    Set ht.SSLConfiguration = ..GetSSLConfiguration(ht.Server)
+    Set ht.Https = 1
+  }
+  If $data(tComponents("port"), port), port'="" {
+    Set ht.Port = port
+  }
+  Set ht.Location = tComponents("path")
+
+  $$$ThrowOnError(ht.Get())
+  If (ht.HttpResponse.StatusCode'=200) {
+    $$$ThrowStatus($$$ERROR(5001,"Unable to download repository "_url))
+  }
+
+  #dim response As %Net.HttpResponse
+  Set fs = ##class(%Stream.FileBinary).%New()
+  Set archiveFileName = ##class(%File).TempFilename("tgz")
+  Set fs.Filename = archiveFileName
+  Do fs.CopyFromAndSave(ht.HttpResponse.Data)
+
+  Set outputFolder = $$$FileTempDir
+  Do ##class(%File).CreateDirectory(outputFolder)
+  Set res = $zf(-100, "", "tar", "-zxvf", archiveFileName, "-C", outputFolder)
+
+  Return outputFolder
+}
+
+ClassMethod GetModuleMeta(url As %String) As %DynamicObject
+{
+  set jo = {"name":"", "version":""}
+  Do ##class(%Net.URLParser).Parse(url, .tComponents)
+  Set ht = ##class(%Net.HttpRequest).%New()
+  Set ht.Server = "raw.githubusercontent.com"
+  If $get(tComponents("scheme"))="https" {
+    Set ht.SSLConfiguration = ..GetSSLConfiguration(ht.Server)
+    Set ht.Https = 1
+  }
+  If $data(tComponents("port"), port), port'="" {
+    Set ht.Port = port
+  }
+  Set ht.Location = tComponents("path")_"master/module.xml"
+
+  $$$ThrowOnError(ht.Get())
+  If (ht.HttpResponse.StatusCode'=200) {
+    $$$ThrowStatus($$$ERROR(5001,"Unable to download XML "_ht.Location))
+  }
+  $$$ThrowOnError(##class(%XML.XPATH.Document).CreateFromStream(ht.HttpResponse.Data, .xpathdoc))
+  $$$ThrowOnError(xpathdoc.EvaluateExpression("/","Export/Document/Module/Version/text()", .tResults))
+  set jo.version = tResults.GetAt(1).ValueGet()
+  $$$ThrowOnError(xpathdoc.EvaluateExpression("/","Export/Document/Module/Name/text()", .tResults))
+  set jo.name = tResults.GetAt(1).ValueGet()  
+  return jo
+}
+
+ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
+{
+  Set outputFolder = ""
+  Try {
+    Set url = jo.repository
+    If $Extract(url, *)'="/" {
+      Set url = url _ "/"
+    }
+    Set name = ..GetPackageNameFromRepositoryURL(url) 
+    Set meta = ..GetModuleMeta(url)
+    If (meta.version = "") { $$$ThrowStatus($$$ERROR(5001, "Invalid package version")) }
+    If (meta.name = "") { $$$ThrowStatus($$$ERROR(5001, "Package name is empty")) }
+    If ('..NameExists(meta.name, .id)) { $$$ThrowStatus($$$ERROR(5001, "This package is not registered")) }
+    If (..repositoryGetStored(id)'=url) { $$$ThrowStatus($$$ERROR(5001, "Wrong package name / repository URL")) }
+    If (..NameVersionExists(meta.name,meta.version)) { 
+      $$$ThrowStatus($$$ERROR(5001, "Version "_meta.version_" of Package "_meta.name_" is already published"))
+    }
+    Set outputFolder = ..DownloadPackageFromGitHub(url)
+    Set packageFolder = ##class(%File).NormalizeDirectory(name _ "-master", outputFolder)
+    Set sc = ..LoadPackage(packageFolder, url, 1)
+  } Catch ex {
+    Set sc = ex.AsStatus() 
+  }
+  if (outputFolder'="") {
+    do ##class(%File).RemoveDirectoryTree(outputFolder)
+  }  
+  return sc
 }
 
 ClassMethod LoadFromGitHub(Url = "")
@@ -216,44 +319,18 @@ ClassMethod LoadFromGitHub(Url = "")
   IF Url="" {
     RETURN ""
   }
-
-  IF $e(Url, *)'="/" set Url = Url _ "/"
-  Set name = $PIECE(Url, "/", *-1)
-  SET Url = Url _ "archive/master.tar.gz"
-  DO ##class(%Net.URLParser).Parse(Url, .tComponents)
-
-  SET ht = ##class(%Net.HttpRequest).%New()
-  SET ht.Server = tComponents("host")
-  IF $get(tComponents("scheme"))="https" {
-    SET ht.SSLConfiguration = ..GetSSLConfiguration(ht.Server)
-    SET ht.Https = 1
+  If $e(Url, *)'="/" { 
+    Set Url = Url _ "/"
   }
-  IF $data(tComponents("port"), port), port'="" {
-    SET ht.Port = port
+  Set name = ..GetPackageNameFromRepositoryURL(Url) 
+  Set outputFolder = ..DownloadPackageFromGitHub(Url)
+  Set packageFolder = ##class(%File).NormalizeDirectory(name _ "-master", outputFolder)
+  Set tSC = ..LoadPackage(packageFolder, Url)
+  If $$$ISERR(tSC) { 
+    Do $system.OBJ.DisplayError() 
+  } else { 
+    Write !,"Success" 
   }
-
-  SET ht.Location = tComponents("path")
-
-  SET tSC = ht.Get()
-  IF $$$ISERR(tSC) do $SYSTEM.OBJ.DisplayError(tSC) QUIT
-
-  IF ht.HttpResponse.StatusCode'=200 QUIT
-
-  #dim response As %Net.HttpResponse
-  SET fs = ##class(%Stream.FileBinary).%New()
-  set archiveFileName = ##class(%File).TempFilename("tgz")
-  SET fs.Filename = archiveFileName
-
-  DO fs.CopyFromAndSave(ht.HttpResponse.Data)
-
-  set outputFolder = $$$FileTempDir
-  do ##class(%File).CreateDirectory(outputFolder)
-  set res = $zf(-100, "", "tar", "-zxvf", archiveFileName, "-C", outputFolder)
-
-  set packageFolder = ##class(%File).NormalizeDirectory(name _ "-master", outputFolder)
-  set tSC = ..LoadPackage(packageFolder)
-  if $$$ISERR(tSC) { do $system.OBJ.DisplayError() }
-  else { write !,"Success" }
   do ##class(%File).RemoveDirectoryTree(outputFolder)
 }
 
