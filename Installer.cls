@@ -23,7 +23,8 @@ XData setup
     <CSPApplication Url="${CSPAPP}"
       Directory="${CSPAPPDIR}"
       Grant="${RESOURCE},%SQL"
-      AuthenticationMethods="96"/>
+      AuthenticationMethods="96"
+      Recurse="1" />
 
   </Namespace>
 
