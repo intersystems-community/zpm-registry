@@ -25,6 +25,8 @@ Property homePage As %String;
 
 Property repository As %String(MAXLEN = 200);
 
+Index Repository On repository;
+
 Property dependencies As array Of %String;
 
 Property package As %Stream.GlobalBinary(%JSONINCLUDE = "INPUTONLY") [ Required ];
@@ -297,14 +299,23 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
     Set meta = ..GetModuleMeta(url)
     If (meta.version = "") { $$$ThrowStatus($$$ERROR(5001, "Invalid package version")) }
     If (meta.name = "") { $$$ThrowStatus($$$ERROR(5001, "Package name is empty")) }
-    If ('..NameExists(meta.name, .id)) { $$$ThrowStatus($$$ERROR(5001, "This package is not registered")) }
-    If (..repositoryGetStored(id)'=url) { $$$ThrowStatus($$$ERROR(5001, "Wrong package name / repository URL")) }
-    If (..NameVersionExists(meta.name,meta.version)) { 
-      $$$ThrowStatus($$$ERROR(5001, "Version "_meta.version_" of Package "_meta.name_" is already published"))
+
+    If (..NameExists(meta.name, .id)) { 
+      If (..repositoryGetStored(id)'=url) { 
+        $$$ThrowStatus($$$ERROR(5001, "Package Name or Repository are invalid"))
+      } Else { 
+        If (..NameVersionExists(meta.name,meta.version)) { 
+          $$$ThrowStatus($$$ERROR(5001, "Version "_meta.version_" of Package "_meta.name_" is already published"))
+        }
+      	Set sc = ..Publish(url, name)	
+      }
+    } Else {
+      If (..RepositoryExists(url, .id)) {
+	      $$$ThrowStatus($$$ERROR(5001, "This repository was published under a different name"))
+      } else {
+        Set sc = ..Publish(url, name)	
+      }
     }
-    Set outputFolder = ..DownloadPackageFromGitHub(url)
-    Set packageFolder = ##class(%File).NormalizeDirectory(name _ "-master", outputFolder)
-    Set sc = ..LoadPackage(packageFolder, url, 1)
   } Catch ex {
     Set sc = ex.AsStatus() 
   }
@@ -312,6 +323,14 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
     do ##class(%File).RemoveDirectoryTree(outputFolder)
   }  
   return sc
+}
+
+ClassMethod Publish(url As %String, name As %String) As %Status
+{
+
+  Set outputFolder = ..DownloadPackageFromGitHub(url)
+  Set packageFolder = ##class(%File).NormalizeDirectory(name _ "-master", outputFolder)
+  Return ..LoadPackage(packageFolder, url, 1)
 }
 
 ClassMethod LoadFromGitHub(Url = "")
