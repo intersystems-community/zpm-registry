@@ -292,6 +292,7 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
   Set outputFolder = ""
   Try {
     Set url = jo.repository
+    set url = $ZCONVERT(url, "L")
     If $Extract(url, *)'="/" {
       Set url = url _ "/"
     }
@@ -299,10 +300,9 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
     Set meta = ..GetModuleMeta(url)
     If (meta.version = "") { $$$ThrowStatus($$$ERROR(5001, "Invalid package version")) }
     If (meta.name = "") { $$$ThrowStatus($$$ERROR(5001, "Package name is empty")) }
-
     If (..NameExists(meta.name, .id)) { 
       If (..repositoryGetStored(id)'=url) { 
-        $$$ThrowStatus($$$ERROR(5001, "Package Name or Repository are invalid"))
+        $$$ThrowStatus($$$ERROR(5001, "Invalid repository for this Package"))
       } Else { 
         If (..NameVersionExists(meta.name,meta.version)) { 
           $$$ThrowStatus($$$ERROR(5001, "Version "_meta.version_" of Package "_meta.name_" is already published"))
