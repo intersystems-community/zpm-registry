@@ -292,7 +292,7 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
   Set outputFolder = ""
   Try {
     Set url = jo.repository
-    set url = $ZCONVERT(url, "L")
+    #; set url = $ZCONVERT(url, "L")
     If $Extract(url, *)'="/" {
       Set url = url _ "/"
     }
