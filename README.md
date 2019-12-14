@@ -1,4 +1,4 @@
-## intersystems zpm-registry
+# intersystems zpm-registry
 ZPM Registry is a a server part of ObjectScript Package Manager.
 
 ZPM Registry hosts ZPM packages and publishes API to publish, list and deploy packages.
@@ -10,14 +10,14 @@ You can use ZPM Registry project to build your own private registry to have the 
 ## Prerequisites
 ZPM Registry works only on IRIS and IRIS For Health, community and Enterprise versions.
 
-## Installation
-# Usual Installation
+# Installation
+## Usual Installation
 Import classes from cls and run Installer from Root
 
-# Docker Installation
+## Docker Installation
 Build docker container
 
-## Usage
+# Usage
 ZPM Registry exposes REST API, which perfoms listing, publising and deployment services. You can examine the REST in the source class [REgistry.cls](https://github.com/intersystems-community/zpm-registry/blob/master/src/cls/ZPM/Registry.cls) or via Swagger
 
 Note, when you publish the repo via API you need to provide the GIthub URL of the repo, which will contain module.xml.
