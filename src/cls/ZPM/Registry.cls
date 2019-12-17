@@ -33,6 +33,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <!-- Package Archive -->
   <Route Url="/:package/-/:file" Method="GET" Call="GetArchive" Cors="true" />
 
+
+  <!-- Temp url, update package, should be combined with "POST /packages"-->
+  <Route Url="/package" Method="POST" Call="UpdatePackage" Cors="true" />
+
 </Routes>
 }
 
@@ -153,6 +157,14 @@ ClassMethod PublishPackage() As %Status
   $$$ThrowOnError(package.%Save())
     
   Return ..Package(package.name, package.version)
+}
+
+ClassMethod UpdatePackage() As %Status
+{
+  If (%request.ContentType '= ..#CONTENTTYPEJSON) {    
+    Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
+  }
+  Return ##class(ZPM.Package).UpdatePackage(%request.Content)
 }
 
 ClassMethod GetArchive(pkg, fileName) As %Status
