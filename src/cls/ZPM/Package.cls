@@ -45,6 +45,16 @@ Property installerUrl As %String(%JSONFIELDNAME = "installer", %JSONINCLUDE = "O
 
 Property versions As list Of %String(%JSONINCLUDE = "OUTPUTONLY", MAXLEN = 200) [ Transient ];
 
+Property versionMajor As %Integer [ SqlComputeCode = {Set {*} = +$Piece({version},".",1)}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+
+Property versionMinor As %Integer [ SqlComputeCode = {Set {*} = +$Piece({version},".",2)}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+
+Property versionPatch As %Integer [ SqlComputeCode = {Set {*} = +$Piece($Piece($Piece({version},".",3),"-"),"+")}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+
+Property versionPrerelease As %String [ SqlComputeCode = {Set {*} = $Piece($Piece($Piece({version},".",3,*),"-",2,*),"+")}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+
+Property versionBuildmetadata As %String [ SqlComputeCode = {Set {*} = $Piece({version},"+",2)}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+
 Method nameSet(value As %String) As %Status
 {
   set i%name = $$$lcase(value)
@@ -131,7 +141,9 @@ ClassMethod versionValidate(pkg As %String = "", version As %String = "") As %St
     Return ""
   }
   if (version = "") || (version = "latest") || (version = "*") {
-    &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package WHERE Name = :pkg ORDER BY ID DESC)
+    &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package WHERE Name = :pkg 
+          ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC
+    )
     If SQLCODE'=0 Return ""
     Return version
   }
@@ -274,7 +286,7 @@ ClassMethod GetModuleMeta(url As %String) As %DynamicObject
     Set ht.Port = port
   }
   Set ht.Location = tComponents("path")_"master/module.xml"
-
+    
   $$$ThrowOnError(ht.Get())
   If (ht.HttpResponse.StatusCode'=200) {
     $$$ThrowStatus($$$ERROR(5001,"Unable to download XML "_ht.Location))
@@ -364,10 +376,11 @@ ClassMethod GetSSLConfiguration(host) As %String
   QUIT host
 }
 
-Query ListLatest(searchTerm As %String = "") As %SQLQuery(ROWSPEC = "name:%String,version:%String")
+Query ListLatest(searchTerm As %String = "") As %SQLQuery(ROWSPEC = "name:%String,repository:%String,version:%String")
 {
-SELECT name, (
-  SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name ORDER BY ID DESC ) version
+SELECT name, repository, (
+  SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name 
+  ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) version
 FROM ZPM.Package p1
 WHERE :searchTerm IS NULL OR (
      name %MATCHES :searchTerm
@@ -416,6 +429,24 @@ Storage Default
 </Value>
 <Value name="12">
 <Value>installer</Value>
+</Value>
+<Value name="13">
+<Value>versionMajor</Value>
+</Value>
+<Value name="14">
+<Value>versionMinor</Value>
+</Value>
+<Value name="15">
+<Value>versionPatch</Value>
+</Value>
+<Value name="16">
+<Value>versionLabel</Value>
+</Value>
+<Value name="17">
+<Value>versionPrerelease</Value>
+</Value>
+<Value name="18">
+<Value>versionBuildmetadata</Value>
 </Value>
 </Data>
 <Data name="dependencies">

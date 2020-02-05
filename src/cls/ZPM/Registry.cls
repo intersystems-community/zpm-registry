@@ -195,6 +195,7 @@ ClassMethod AllPackages() As %Status
   While tRS.%Next() {
     Set tPkgInfo = {
       "name": (tRS.name),
+      "repository": (tRS.repository),
       "versions": [(tRS.version)]
     }
     do tList.%Push(tPkgInfo)
