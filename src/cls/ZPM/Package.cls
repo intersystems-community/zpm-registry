@@ -141,7 +141,9 @@ ClassMethod versionValidate(pkg As %String = "", version As %String = "") As %St
     Return ""
   }
   if (version = "") || (version = "latest") || (version = "*") {
-    &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package WHERE Name = :pkg ORDER BY ID DESC)
+    &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package WHERE Name = :pkg 
+          ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC
+    )
     If SQLCODE'=0 Return ""
     Return version
   }
