@@ -37,6 +37,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <!-- Temp url, update package, should be combined with "POST /packages"-->
   <Route Url="/package" Method="POST" Call="UpdatePackage" Cors="true" />
 
+  
+  <!-- Analytics -->
+  <Route Url="/packages/:package/collect" Method="POST" Call="CollectAnalytics" Cors="true" />
+
 </Routes>
 }
 
@@ -202,6 +206,14 @@ ClassMethod AllPackages() As %Status
   }
   
   RETURN ..%ProcessResult($$$OK, tList)
+}
+
+ClassMethod CollectAnalytics() As %Status
+{
+  If (%request.ContentType '= ..#CONTENTTYPEJSON) {    
+    Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
+  }
+  Return ##class(ZPM.Analytics.Measurement).SaveMeasurement($Get(%request.CgiEnvs("REMOTE_ADDR"),""), %request.Content)
 }
 
 }
