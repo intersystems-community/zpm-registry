@@ -33,22 +33,25 @@ ForeignKey NameVersionFK(Name,Version) References ZPM.Package(NameVersion);
 
 Method SetIP(ip As %String = "") As %Status
 {
+    Set ipObj = ""
     Return:(ip="") $$$OK
     // найти есть ли IP в ZPM.Analytics.IP
     Set tRS = ##class(ZPM.Analytics.IP).ThisDayIPUpdateFunc(ip)
     If (tRS.%SQLCODE<0) {
         Return 0
     }
-    If (tRS.%SQLCODE=0) {
-        set ipObj = ##class(ZPM.Analytics.IP).IPIndexOpen(ip)
-    } else {
-        set ipObj = ##class(ZPM.Analytics.IP).LoadIPData(ip)
+    If (tRS.%Next() && (tRS.quantity'=0)) {
+        Set ipObj = ##class(ZPM.Analytics.IP).IPIndexOpen(ip)        
+    }
+    If ('$IsObject(ipObj)) {
+        Set ipObj = ##class(ZPM.Analytics.IP).LoadIPData(ip)
     }
     Return:('$IsObject(ipObj)) $$$OK
     Set ..IP = ip
     Set ..Country = ipObj.Country
     Set ..Region = ipObj.Region
     Set ..City = ipObj.City
+    Return $$$OK
 }
 
 ClassMethod SaveMeasurement(ip As %String, json As %DynamicObject) As %Status

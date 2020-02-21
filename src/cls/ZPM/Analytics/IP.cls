@@ -60,9 +60,9 @@ ClassMethod GetSSLConfiguration(host) As %String
   return host
 }
 
-Query ThisDayIPUpdate(ip As %String = "") As %SQLQuery(ROWSPEC = "IP:%String")
+Query ThisDayIPUpdate(ip As %String = "") As %SQLQuery(ROWSPEC = "quantity:%String")
 {
-SELECT IP FROM ZPM_Analytics.IP WHERE IP=:ip AND {fn TIMESTAMPDIFF(SQL_TSI_DAY, TS, NOW())}<1
+SELECT COUNT(ID) as quantity FROM ZPM_Analytics.IP WHERE IP=:ip AND {fn TIMESTAMPDIFF(SQL_TSI_DAY, TS, NOW())}<1
 }
 
 Storage Default

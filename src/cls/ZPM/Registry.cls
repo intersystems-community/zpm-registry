@@ -213,7 +213,6 @@ ClassMethod CollectAnalytics() As %Status
   If (%request.ContentType '= ..#CONTENTTYPEJSON) {    
     Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
   }
-  merge ^x = %request.CgiEnvs
   Return ##class(ZPM.Analytics.Measurement).SaveMeasurement($Get(%request.CgiEnvs("REMOTE_ADDR"),""), %request.Content)
 }
 
