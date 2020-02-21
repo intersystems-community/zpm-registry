@@ -2,7 +2,7 @@ Class ZPM.Analytics.Measurement Extends (%Persistent, %JSON.Adaptor)
 {
 
 /// Server date and time, saving the data 
-Property TS As %PosixTime(%JSONINCLUDE = "none");
+Property TS As %PosixTime(%JSONINCLUDE = "none") [ SqlComputeCode = {set {*}=##class(%Library.PosixTime).CurrentTimeStamp()}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
 /// ModuleName
 Property Name As %String(%JSONFIELDNAME = "name", MAXLEN = 50) [ Required ];

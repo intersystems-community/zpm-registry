@@ -39,7 +39,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 
   
   <!-- Analytics -->
-  <Route Url="/packages/:package/collect" Method="POST" Call="CollectAnalytics" Cors="true" />
+  <Route Url="/collect" Method="POST" Call="CollectAnalytics" Cors="true" />
 
 </Routes>
 }
