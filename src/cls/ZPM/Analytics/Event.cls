@@ -12,8 +12,10 @@ Property Name As %String(%JSONFIELDNAME = "name", MAXLEN = 50) [ Required ];
 
 Property Version As %String(%JSONFIELDNAME = "version", MAXLEN = 50) [ Required ];
 
+Property GUID As %String(%JSONFIELDNAME = "guid");
+
 /// Iris Version ($zv)
-Property SystemVersion As %String(%JSONFIELDNAME = "system_version", MAXLEN = 100) [ Required ];
+Property SystemVersion As %String(%JSONFIELDNAME = "system_version", MAXLEN = 100);
 
 Property SystemVersionOS As %String(%JSONINCLUDE = "none") [ SqlComputeCode = {set {*}=##class(%SYSTEM.Version).GetOS({SystemVersion})}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
@@ -123,6 +125,9 @@ Storage Default
 </Value>
 <Value name="15">
 <Value>Type</Value>
+</Value>
+<Value name="16">
+<Value>GUID</Value>
 </Value>
 </Data>
 <DataLocation>^ZPM.Analytics.EventD</DataLocation>
