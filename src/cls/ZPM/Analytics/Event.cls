@@ -1,8 +1,11 @@
-Class ZPM.Analytics.Measurement Extends (%Persistent, %JSON.Adaptor)
+Class ZPM.Analytics.Event Extends (%Persistent, %JSON.Adaptor)
 {
 
 /// Server date and time, saving the data 
 Property TS As %PosixTime(%JSONINCLUDE = "none") [ SqlComputeCode = {set {*}=##class(%Library.PosixTime).CurrentTimeStamp()}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+
+/// Event type: download, install, uninstall
+Property Type As %String(%JSONINCLUDE = "none", VALUELIST = ",download,install,uninstall");
 
 /// ModuleName
 Property Name As %String(%JSONFIELDNAME = "name", MAXLEN = 50) [ Required ];
@@ -11,6 +14,10 @@ Property Version As %String(%JSONFIELDNAME = "version", MAXLEN = 50) [ Required 
 
 /// Iris Version ($zv)
 Property SystemVersion As %String(%JSONFIELDNAME = "system_version", MAXLEN = 100) [ Required ];
+
+Property SystemVersionOS As %String(%JSONINCLUDE = "none") [ SqlComputeCode = {set {*}=##class(%SYSTEM.Version).GetOS({SystemVersion})}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+
+Property SystemVersionNumber As %String(%JSONINCLUDE = "none") [ SqlComputeCode = {set {*}=##class(%SYSTEM.Version).GetNumber({SystemVersion})}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
 Property ZPMClientVersion As %String(%JSONFIELDNAME = "zpmclient_version", MAXLEN = 50);
 
@@ -54,22 +61,24 @@ Method SetIP(ip As %String = "") As %Status
     Return $$$OK
 }
 
-ClassMethod SaveMeasurement(ip As %String, json As %DynamicObject) As %Status
+ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObject) As %Status
 {
     Try {
-        Set measurement = ..%New()
-        DO measurement.%JSONImport(json)
-        Do measurement.SetIP(ip)
-        $$$THROWONERROR(sc, measurement.%Save())
+        Set event = ..%New()
+        Set event.Type = action
+        DO event.%JSONImport(json)
+        Do event.SetIP(ip)
+        $$$THROWONERROR(sc, event.%Save())
         Return sc
     } Catch ex {
+        do ex.Log()
         Return ex.AsStatus()
     }
 }
 
 Storage Default
 {
-<Data name="MeasurementDefaultData">
+<Data name="EventDefaultData">
 <Value name="1">
 <Value>%%CLASSNAME</Value>
 </Value>
@@ -86,32 +95,41 @@ Storage Default
 <Value>SystemVersion</Value>
 </Value>
 <Value name="6">
-<Value>ZPMClientVersion</Value>
+<Value>SystemVersionOS</Value>
 </Value>
 <Value name="7">
-<Value>IP</Value>
+<Value>SystemVersionNumber</Value>
 </Value>
 <Value name="8">
-<Value>Country</Value>
+<Value>ZPMClientVersion</Value>
 </Value>
 <Value name="9">
-<Value>Region</Value>
+<Value>IP</Value>
 </Value>
 <Value name="10">
-<Value>City</Value>
+<Value>Country</Value>
 </Value>
 <Value name="11">
-<Value>Success</Value>
+<Value>Region</Value>
 </Value>
 <Value name="12">
+<Value>City</Value>
+</Value>
+<Value name="13">
+<Value>Success</Value>
+</Value>
+<Value name="14">
 <Value>ErrorMsg</Value>
 </Value>
+<Value name="15">
+<Value>Type</Value>
+</Value>
 </Data>
-<DataLocation>^ZPM.Analytics.MeasurementD</DataLocation>
-<DefaultData>MeasurementDefaultData</DefaultData>
-<IdLocation>^ZPM.Analytics.MeasurementD</IdLocation>
-<IndexLocation>^ZPM.Analytics.MeasurementI</IndexLocation>
-<StreamLocation>^ZPM.Analytics.MeasurementS</StreamLocation>
+<DataLocation>^ZPM.Analytics.EventD</DataLocation>
+<DefaultData>EventDefaultData</DefaultData>
+<IdLocation>^ZPM.Analytics.EventD</IdLocation>
+<IndexLocation>^ZPM.Analytics.EventI</IndexLocation>
+<StreamLocation>^ZPM.Analytics.EventS</StreamLocation>
 <Type>%Storage.Persistent</Type>
 }
 
