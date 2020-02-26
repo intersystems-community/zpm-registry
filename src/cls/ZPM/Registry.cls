@@ -221,8 +221,8 @@ ClassMethod CollectAnalytics(action As %String = "") As %Status
   If (action = "") {    
     Return ..ReportHttpStatusCode(HTTP404NOTFOUND)
   }
-  Set token = $Get(%request.CgiEnvs("INSTALLTOKEN"),"")
-  If $Data(^IRIS.TempZPMRInst(token)) {
+  Set token = $Get(%request.CgiEnvs("HTTP_INSTALLTOKEN"),"")
+  If token'="", $Data(^IRIS.TempZPMRInst(token)) {
     Kill ^IRIS.TempZPMRInst(token)
     Return ##class(ZPM.Analytics.Event).SaveEvent(action, $Get(%request.CgiEnvs("REMOTE_ADDR"),""), %request.Content)
   } 
