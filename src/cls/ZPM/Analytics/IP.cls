@@ -52,12 +52,12 @@ ClassMethod LoadIPData(ip As %String) As ZPM.Analytics.IP
 
 ClassMethod GetSSLConfiguration(host) As %String
 {
-  New $NAMESPACE
-  Set $NAMESPACE = "%SYS"
-  If '##class(Security.SSLConfigs).Exists(host) {
-    Do ##class(Security.SSLConfigs).Create(host)
-  }
-  return host
+    New $NAMESPACE
+    Set $NAMESPACE = "%SYS"
+    If '##class(Security.SSLConfigs).Exists(host) {
+        Do ##class(Security.SSLConfigs).Create(host)
+    }
+    return host
 }
 
 Query ThisDayIPUpdate(ip As %String = "") As %SQLQuery(ROWSPEC = "quantity:%String")
