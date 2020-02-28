@@ -15,7 +15,7 @@ Property Version As %String(%JSONFIELDNAME = "version", MAXLEN = 50) [ Required 
 Property GUID As %String(%JSONFIELDNAME = "guid");
 
 /// Iris Version ($zv)
-Property SystemVersion As %String(%JSONFIELDNAME = "system_version", MAXLEN = 100);
+Property SystemVersion As %String(%JSONFIELDNAME = "system_version", MAXLEN = 1000);
 
 Property SystemVersionOS As %String(%JSONINCLUDE = "none") [ SqlComputeCode = {set {*}=##class(%SYSTEM.Version).GetOS({SystemVersion})}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
