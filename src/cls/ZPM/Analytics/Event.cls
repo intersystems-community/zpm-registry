@@ -39,6 +39,7 @@ ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObj
     Try {
         Set event = ..%New()
         Set event.Type = action
+        Set event.IP = ip
         DO event.%JSONImport(json)
         $$$THROWONERROR(sc, event.%Save())
         Return sc
