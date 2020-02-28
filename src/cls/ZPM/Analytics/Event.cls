@@ -25,12 +25,6 @@ Property ZPMClientVersion As %String(%JSONFIELDNAME = "zpmclient_version", MAXLE
 
 Property IP As %String(%JSONINCLUDE = "none", MAXLEN = 50);
 
-Property Country As %String(%JSONINCLUDE = "none");
-
-Property Region As %String(%JSONINCLUDE = "none");
-
-Property City As %String(%JSONINCLUDE = "none");
-
 /// Is Installation finished succesfuly
 Property Success As %Boolean(%JSONFIELDNAME = "success");
 
@@ -40,36 +34,12 @@ Parameter %JSONIGNOREINVALIDFIELD = 1;
 
 ForeignKey NameVersionFK(Name,Version) References ZPM.Package(NameVersion);
 
-Method SetIP(ip As %String = "") As %Status
-{
-    Set ipObj = ""
-    Return:(ip="") $$$OK
-    // найти есть ли IP в ZPM.Analytics.IP
-    Set tRS = ##class(ZPM.Analytics.IP).ThisDayIPUpdateFunc(ip)
-    If (tRS.%SQLCODE<0) {
-        Return 0
-    }
-    If (tRS.%Next() && (tRS.quantity'=0)) {
-        Set ipObj = ##class(ZPM.Analytics.IP).IPIndexOpen(ip)        
-    }
-    If ('$IsObject(ipObj)) {
-        Set ipObj = ##class(ZPM.Analytics.IP).LoadIPData(ip)
-    }
-    Return:('$IsObject(ipObj)) $$$OK
-    Set ..IP = ip
-    Set ..Country = ipObj.Country
-    Set ..Region = ipObj.Region
-    Set ..City = ipObj.City
-    Return $$$OK
-}
-
 ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObject) As %Status
 {
     Try {
         Set event = ..%New()
         Set event.Type = action
         DO event.%JSONImport(json)
-        Do event.SetIP(ip)
         $$$THROWONERROR(sc, event.%Save())
         Return sc
     } Catch ex {
