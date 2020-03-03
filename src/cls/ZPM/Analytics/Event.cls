@@ -5,7 +5,7 @@ Class ZPM.Analytics.Event Extends (%Persistent, %JSON.Adaptor)
 Property TS As %PosixTime(%JSONINCLUDE = "none") [ SqlComputeCode = {set {*}=##class(%Library.PosixTime).CurrentTimeStamp()}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
 /// Event type: download, install, uninstall
-Property Type As %String(%JSONINCLUDE = "none", VALUELIST = ",download,install,uninstall");
+Property Action As %String(%JSONINCLUDE = "none", VALUELIST = ",download,install,uninstall");
 
 /// ModuleName
 Property Name As %String(%JSONFIELDNAME = "name", MAXLEN = 50) [ Required ];
@@ -38,11 +38,11 @@ ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObj
 {
     Try {
         Set event = ..%New()
-        Set event.Type = action
+        Set event.Action = action
         Set event.IP = ip
         DO event.%JSONImport(json)
-        $$$THROWONERROR(sc, event.%Save())
-        Return sc
+        $$$ThrowOnError(event.%Save())
+        Return $$$OK
     } Catch ex {
         do ex.Log()
         Return ex.AsStatus()
@@ -59,46 +59,37 @@ Storage Default
 <Value>TS</Value>
 </Value>
 <Value name="3">
-<Value>Name</Value>
+<Value>Action</Value>
 </Value>
 <Value name="4">
-<Value>Version</Value>
+<Value>Name</Value>
 </Value>
 <Value name="5">
-<Value>SystemVersion</Value>
+<Value>Version</Value>
 </Value>
 <Value name="6">
-<Value>SystemVersionOS</Value>
+<Value>GUID</Value>
 </Value>
 <Value name="7">
-<Value>SystemVersionNumber</Value>
+<Value>SystemVersion</Value>
 </Value>
 <Value name="8">
-<Value>ZPMClientVersion</Value>
+<Value>SystemVersionOS</Value>
 </Value>
 <Value name="9">
-<Value>IP</Value>
+<Value>SystemVersionNumber</Value>
 </Value>
 <Value name="10">
-<Value>Country</Value>
+<Value>ZPMClientVersion</Value>
 </Value>
 <Value name="11">
-<Value>Region</Value>
+<Value>IP</Value>
 </Value>
 <Value name="12">
-<Value>City</Value>
-</Value>
-<Value name="13">
 <Value>Success</Value>
 </Value>
-<Value name="14">
+<Value name="13">
 <Value>ErrorMsg</Value>
-</Value>
-<Value name="15">
-<Value>Type</Value>
-</Value>
-<Value name="16">
-<Value>GUID</Value>
 </Value>
 </Data>
 <DataLocation>^ZPM.Analytics.EventD</DataLocation>
