@@ -37,6 +37,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <!-- Temp url, update package, should be combined with "POST /packages"-->
   <Route Url="/package" Method="POST" Call="UpdatePackage" Cors="true" />
 
+  
+  <!-- Analytics -->
+  <Route Url="/collect/:action" Method="POST" Call="CollectAnalytics" Cors="true" />
+
 </Routes>
 }
 
@@ -176,6 +180,11 @@ ClassMethod GetArchive(pkg, fileName) As %Status
     RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
 
+  Do ##class(ZPM.Analytics.Event).SaveEvent("download", %request.GetCgiEnv("REMOTE_ADDR"), {"name":(package.name),"version":(package.version)})
+  Set token = ##class(%PopulateUtils).StringMin(16,16)
+  Set ^IRIS.TempZPMRInst(token) = $Listbuild(pkg, version)
+  Do %response.SetHeader("INSTALLTOKEN",token)
+
   SET tStream = package.package
   SET %response.NoCharSetConvert = 1
   SET %response.CharSet = "RAW"
@@ -202,6 +211,22 @@ ClassMethod AllPackages() As %Status
   }
   
   RETURN ..%ProcessResult($$$OK, tList)
+}
+
+ClassMethod CollectAnalytics(action As %String = "") As %Status
+{
+  If (%request.ContentType '= ..#CONTENTTYPEJSON) {    
+    Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
+  }
+  If (action = "") {    
+    Return ..ReportHttpStatusCode(HTTP404NOTFOUND)
+  }
+  Set token = %request.GetCgiEnv("HTTP_INSTALLTOKEN")
+  If token'="", $Data(^IRIS.TempZPMRInst(token)) {
+    Kill ^IRIS.TempZPMRInst(token)
+    Return ##class(ZPM.Analytics.Event).SaveEvent(action, %request.GetCgiEnv("REMOTE_ADDR"), %request.Content)
+  } 
+  Return $$$ERROR(5001, "Invalid token")
 }
 
 }
