@@ -1,0 +1,17 @@
+name: docker
+on:
+  push:
+    branches: [master]  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      image: docker.pkg.github.com/${{ github.repository }}/zpm-registry
+    steps:
+      - uses: actions/checkout@master
+      - name: Build Docker image
+        run: docker build --rm -t ${{ env.image }} .
+      - name: Login to DockerHub Registry
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com --username ${{ github.actor }} --password-stdin
+      - name: Push Docker image
+        run: docker push ${{ env.image }}

@@ -1,4 +1,4 @@
-FROM store/intersystems/iris-community:2019.4.0.383.0
+FROM store/intersystems/iris-community:2020.1.0.215.0
 
 USER root
 
