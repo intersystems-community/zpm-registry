@@ -32,6 +32,10 @@ XData setup
     <Arg Value="${CSPAPP}"/>
     <Arg Value="ZPM.Registry"/>
   </Invoke>
+
+  <Invoke Class="Security.SQLPrivileges" Method="Import" CheckStatus="true">
+    <Arg Value="${APPPATH}SQLPriv.xml"/>
+  </Invoke>
 </Manifest>
 }
 

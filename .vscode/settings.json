@@ -8,6 +8,10 @@
     "password": "SYS",
     "ns": "REGISTRY",
     "port": 52773,
-    "addCategory": true
+    "addCategory": true,
+    "links": {
+      "Swagger spec": "http://${host}:${port}/registry/_spec",
+      "All Packages": "http://${host}:${port}/registry/packages/-/all"
+    }
   }
 }

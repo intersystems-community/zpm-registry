@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SQLPrivilegesExport>
+  <SQLPrivileges>
+    <Namespace>REGISTRY</Namespace>
+    <SQLObject>1,ZPM.Package</SQLObject>
+    <Privilege>s</Privilege>
+    <Grantee>_PUBLIC</Grantee>
+    <Grantor>_SYSTEM</Grantor>
+    <Grantable>0</Grantable>
+  </SQLPrivileges>
+  <SQLPrivileges>
+    <Namespace>REGISTRY</Namespace>
+    <SQLObject>1,ZPM.Package_dependencies</SQLObject>
+    <Privilege>s</Privilege>
+    <Grantee>_PUBLIC</Grantee>
+    <Grantor>_SYSTEM</Grantor>
+    <Grantable>0</Grantable>
+  </SQLPrivileges>
+</SQLPrivilegesExport>

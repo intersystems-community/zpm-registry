@@ -8,6 +8,7 @@ RUN chown ${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} .
 USER irisowner
 
 COPY  Installer.cls .
+COPY  SQLPriv.xml .
 COPY  src src
 COPY irissession.sh /
 SHELL ["/irissession.sh"]
