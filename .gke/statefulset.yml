@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zpm-registry
+  namespace: zpm-registry
+spec:
+  serviceName: zpm-registry
+  replicas: 1
+  updateStrategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app: zpm-registry
+  template:
+    metadata:
+      labels:
+        app: zpm-registry
+    spec:
+      initContainers:
+      - name: zpm--registry-volume-init
+        image: busybox
+        command:
+        - sh
+        - -c
+        - |
+          echo -e "" \
+            "iris session iris -U%SYS '##class(SYS.Database).CreateDatabase(\"/opt/zpm/REGISTRY-DATA\",,,,\"%DB_REGISTRY\")'" \
+             > /init-helper/init_registry_data.sh
+          chown -R 51773:52773 /opt/zpm/REGISTRY-DATA
+          chown -R 51773:52773 /init-helper
+          chmod u+x /init-helper/init_registry_data.sh
+        volumeMounts:
+        - mountPath: /init-helper
+          name: init-helper
+        - mountPath: /opt/zpm/REGISTRY-DATA
+          name: zpm-registry-volume
+      volumes:
+      - emptyDir: {}
+        name: init-helper
+      containers:
+      - image: zpm-registry
+        name: zpm-registry
+        ports:
+        - containerPort: 52773
+          name: web
+        readinessProbe:
+          httpGet:
+            path: /csp/sys/UtilHome.csp
+            port: 52773
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /csp/sys/UtilHome.csp
+            port: 52773
+          periodSeconds: 10
+        env:
+        - name: ISC_DATA_DIRECTORY
+          value: /opt/isc/dur
+        # args:
+        # - -a
+        # - /init-helper/init_registry_data.sh
+        volumeMounts:
+        - mountPath: /opt/zpm/REGISTRY-DATA
+          name: zpm-registry-volume
+        - mountPath: /opt/isc
+          name: zpm-registry-isc
+        - mountPath: /init-helper
+          name: init-helper
+  volumeClaimTemplates:
+  - metadata:
+      name: zpm-registry-volume
+      namespace: zpm-registry
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 10Gi
+  - metadata:
+      name: zpm-registry-isc
+      namespace: zpm-registry
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 1Gi
