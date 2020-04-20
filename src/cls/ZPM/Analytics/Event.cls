@@ -34,12 +34,24 @@ Parameter %JSONIGNOREINVALIDFIELD = 1;
 
 ForeignKey NameVersionFK(Name,Version) References ZPM.Package(NameVersion);
 
+Property Country As %String(%JSONINCLUDE = "none");
+
+Property Region As %String(%JSONINCLUDE = "none");
+
+Property City As %String(%JSONINCLUDE = "none");
+
 ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObject) As %Status
 {
     Try {
         Set event = ..%New()
         Set event.Action = action
         Set event.IP = ip
+        If ##class(%Dictionary.CompiledClass).%ExistsId("ZPM.Analytics.IP") {
+            Do ##class(ZPM.Analytics.IP).SetGeo(event, ip)
+        }
+        Set ..IP = ip
+        Return $$$OK
+    }
         DO event.%JSONImport(json)
         $$$ThrowOnError(event.%Save())
         Return $$$OK
