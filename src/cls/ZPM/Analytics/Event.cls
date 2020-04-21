@@ -49,9 +49,6 @@ ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObj
         If ##class(%Dictionary.CompiledClass).%ExistsId("ZPM.Analytics.IP") {
             Do ##class(ZPM.Analytics.IP).SetGeo(event, ip)
         }
-        Set ..IP = ip
-        Return $$$OK
-    }
         DO event.%JSONImport(json)
         $$$ThrowOnError(event.%Save())
         Return $$$OK
@@ -102,6 +99,15 @@ Storage Default
 </Value>
 <Value name="13">
 <Value>ErrorMsg</Value>
+</Value>
+<Value name="14">
+<Value>Country</Value>
+</Value>
+<Value name="15">
+<Value>Region</Value>
+</Value>
+<Value name="16">
+<Value>City</Value>
 </Value>
 </Data>
 <DataLocation>^ZPM.Analytics.EventD</DataLocation>
