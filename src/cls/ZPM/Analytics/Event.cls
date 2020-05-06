@@ -32,8 +32,6 @@ Property ErrorMsg As %String(%JSONFIELDNAME = "error_msg", MAXLEN = 1000);
 
 Parameter %JSONIGNOREINVALIDFIELD = 1;
 
-ForeignKey NameVersionFK(Name,Version) References ZPM.Package(NameVersion);
-
 Property Country As %String(%JSONINCLUDE = "none");
 
 Property Region As %String(%JSONINCLUDE = "none");
