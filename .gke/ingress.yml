@@ -13,11 +13,11 @@ spec:
   - host: pm2.community.intersystems.com
     http:
       paths:
-      - path: /csp/.*
+      - path: /csp/*
         backend:
           serviceName: zpm-registry
           servicePort: 52773
-      - path: /.*
+      - path: /*
         backend:
           serviceName: zpm-registry
           servicePort: 52773
