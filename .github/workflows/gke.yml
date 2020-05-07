@@ -62,7 +62,7 @@ jobs:
       working-directory: .gke
       run: |-
         ./kustomize edit \
-          set image zpm-registry=gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA
+          set image zpm-registry=$GCR_LOCATION/$PROJECT_ID/$IMAGE:$GITHUB_SHA
         ./kustomize build
         ./kustomize build | kubectl apply -f -
         kubectl -n zpm-registry get all  
