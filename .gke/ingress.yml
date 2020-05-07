@@ -7,17 +7,14 @@ metadata:
     external-dns.alpha.kubernetes.io/hostname: pm2.community.intersystems.com
     kubernetes.io/ingress.global-static-ip-name: prod-pm
   name: zpm-registry
-  namespace: zpm-registry
+  namespace: iris
 spec:
   rules:
   - host: pm2.community.intersystems.com
     http:
       paths:
-      - path: /csp/*
-        backend:
+      - backend:
           serviceName: zpm-registry
           servicePort: 52773
-      - path: /*
-        backend:
-          serviceName: zpm-registry
-          servicePort: 52773
+        path: /*
+
