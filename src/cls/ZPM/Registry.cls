@@ -139,7 +139,9 @@ ClassMethod PackageInstaller(pkg As %String = "", version As %String = "") As %S
   }
   
   If package.installer.Size {
+    Set filename = pkg_"-"_version_".xml"
     Set %response.ContentType = "text/xml"
+    Do %response.SetHeader("Content-Disposition", "attachment; filename="""_filename_"""")
     RETURN ..%ProcessResult($$$OK, package.installer)
   }
   RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)

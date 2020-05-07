@@ -28,19 +28,10 @@ ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue A
     IF ((pMethod'="POST") && (pMethod'="PUT")) || (%request.Content="") {
       SET %request.Content = {}
     } ELSE {
-      IF '$isobject(%request.Content) {
-        SET tContent = %request.Content
-      } ELSE {
-        SET tContent = ""
-        WHILE '%request.Content.AtEnd {
-          SET tContent = tContent_%request.Content.Read()
-        }
-      }
-      IF (tContent="") {
+      IF ($IsObject(%request.Content))&&('%request.Content.Size) {
         SET %request.Content = {}
       } ELSE {
-        SET tContent = $zconvert(tContent, "I", "UTF8")
-        SET %request.Content = ##class(%Library.DynamicObject).%FromJSON(tContent)
+        SET %request.Content = ##class(%Library.DynamicObject).%FromJSON(%request.Content)
       }
     }
         

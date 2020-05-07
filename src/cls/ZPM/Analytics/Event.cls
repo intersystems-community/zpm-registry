@@ -32,7 +32,11 @@ Property ErrorMsg As %String(%JSONFIELDNAME = "error_msg", MAXLEN = 1000);
 
 Parameter %JSONIGNOREINVALIDFIELD = 1;
 
-ForeignKey NameVersionFK(Name,Version) References ZPM.Package(NameVersion);
+Property Country As %String(%JSONINCLUDE = "none");
+
+Property Region As %String(%JSONINCLUDE = "none");
+
+Property City As %String(%JSONINCLUDE = "none");
 
 ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObject) As %Status
 {
@@ -40,6 +44,9 @@ ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObj
         Set event = ..%New()
         Set event.Action = action
         Set event.IP = ip
+        If ##class(%Dictionary.CompiledClass).%ExistsId("ZPM.Analytics.IP") {
+            Do ##class(ZPM.Analytics.IP).SetGeo(event, ip)
+        }
         DO event.%JSONImport(json)
         $$$ThrowOnError(event.%Save())
         Return $$$OK
@@ -90,6 +97,15 @@ Storage Default
 </Value>
 <Value name="13">
 <Value>ErrorMsg</Value>
+</Value>
+<Value name="14">
+<Value>Country</Value>
+</Value>
+<Value name="15">
+<Value>Region</Value>
+</Value>
+<Value name="16">
+<Value>City</Value>
 </Value>
 </Data>
 <DataLocation>^ZPM.Analytics.EventD</DataLocation>
