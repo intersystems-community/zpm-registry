@@ -10,6 +10,7 @@ env:
   SERVICE_ACCOUNT_KEY: ${{ secrets.GKE_SA_KEY }}
   GKE_CLUSTER:         ${{ secrets.GKE_CLUSTER }}
   GKE_ZONE:            ${{ secrets.GKE_ZONE }}
+  GCR_LOCATION:        ${{ secrets.GCR_LOCATION }}
   IMAGE:               zpm-registry
 
 jobs:
@@ -43,7 +44,7 @@ jobs:
     - name: Build
       run: |-
         docker build \
-          --tag "gcr.io/$PROJECT_ID/$IMAGE:$GITHUB_SHA" \
+          --tag "$GCR_LOCATION/$PROJECT_ID/$IMAGE:$GITHUB_SHA" \
           .
     # Push the Docker image to Google Container Registry
     - name: Publish
