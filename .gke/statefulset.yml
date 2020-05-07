@@ -17,29 +17,35 @@ spec:
         app: zpm-registry
     spec:
       initContainers:
-      - name: zpm--registry-volume-init
+      - name: zpm-registry-volume-init
         image: busybox
         command:
         - sh
         - -c
         - |
-          echo -e "" \
-            "iris session iris -U%SYS '##class(SYS.Database).CreateDatabase(\"/opt/zpm/REGISTRY-DATA\",,,,\"%DB_REGISTRY\")'" \
-             > /init-helper/init_registry_data.sh
           chown -R 51773:52773 /opt/zpm/REGISTRY-DATA
-          chown -R 51773:52773 /init-helper
-          chmod u+x /init-helper/init_registry_data.sh
+          chmod g+w /opt/zpm/REGISTRY-DATA
+          echo -e "zn \"%sys\"\nif (##class(SYS.Database).%ExistsId(\"/opt/zpm/REGISTRY-DATA\")) { halt }\nset db=##class(SYS.Database).%New()\nset db.Directory=\"/opt/zpm/REGISTRY-DATA\"\nset db.ResourceName=\"%DB_REGISTRY\"\nwrite db.%Save()\nhalt" > /mount-helper/mount_registry_data
         volumeMounts:
-        - mountPath: /init-helper
-          name: init-helper
         - mountPath: /opt/zpm/REGISTRY-DATA
           name: zpm-registry-volume
+        - mountPath: /mount-helper
+          name: mount-helper
       volumes:
       - emptyDir: {}
-        name: init-helper
+        name: mount-helper
       containers:
       - image: zpm-registry
         name: zpm-registry
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/bash
+              - -c
+              - |
+                sleep 30
+                iris session iris < /mount-helper/mount_registry_data
         ports:
         - containerPort: 52773
           name: web
@@ -47,26 +53,18 @@ spec:
           httpGet:
             path: /csp/sys/UtilHome.csp
             port: 52773
-          initialDelaySeconds: 10
-          periodSeconds: 10
+          initialDelaySeconds: 30
+          periodSeconds: 30
         livenessProbe:
           httpGet:
             path: /csp/sys/UtilHome.csp
             port: 52773
-          periodSeconds: 10
-        env:
-        - name: ISC_DATA_DIRECTORY
-          value: /opt/isc/dur
-        # args:
-        # - -a
-        # - /init-helper/init_registry_data.sh
+          periodSeconds: 30
         volumeMounts:
         - mountPath: /opt/zpm/REGISTRY-DATA
           name: zpm-registry-volume
-        - mountPath: /opt/isc
-          name: zpm-registry-isc
-        - mountPath: /init-helper
-          name: init-helper
+        - mountPath: /mount-helper
+          name: mount-helper
   volumeClaimTemplates:
   - metadata:
       name: zpm-registry-volume
@@ -77,12 +75,3 @@ spec:
       resources:
         requests:
           storage: 10Gi
-  - metadata:
-      name: zpm-registry-isc
-      namespace: zpm-registry
-    spec:
-      accessModes:
-      - ReadWriteOnce
-      resources:
-        requests:
-          storage: 1Gi
