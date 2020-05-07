@@ -1,0 +1,8 @@
+apiVersion: networking.gke.io/v1beta1
+kind: ManagedCertificate
+metadata:
+  name: zpm-registry-certificate
+  namespace: zpm-registry
+spec:
+  domains:
+    - pm2.community.intersystems.com

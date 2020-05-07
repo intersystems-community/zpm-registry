@@ -4,7 +4,7 @@ metadata:
   name: zpm-registry
   namespace: zpm-registry
 spec:
-  type: LoadBalancer
+  type: NodePort
   ports:
     - port: 52773
       targetPort: 52773

@@ -4,20 +4,20 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: gce
     networking.gke.io/managed-certificates: zpm-registry
-    external-dns.alpha.kubernetes.io/hostname: pm.openexchange.intersystems.com
-    nginx.ingress.kubernetes.io/rewrite-target: /registry/$1
+    external-dns.alpha.kubernetes.io/hostname: pm2.community.intersystems.com
+    kubernetes.io/ingress.global-static-ip-name: prod-pm
   name: zpm-registry
   namespace: zpm-registry
 spec:
   rules:
-  - host: pm.openexchange.intersystems.com
+  - host: pm2.community.intersystems.com
     http:
       paths:
-      - path: /csp/(.*)
+      - path: /csp/.*
         backend:
           serviceName: zpm-registry
           servicePort: 52773
-      - path: /(.*)
+      - path: /.*
         backend:
           serviceName: zpm-registry
           servicePort: 52773
