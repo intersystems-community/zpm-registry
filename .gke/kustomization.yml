@@ -5,3 +5,4 @@ resources:
 - ingress.yml
 - statefulset.yml
 - service.yml
+- managed-certificate.yml
