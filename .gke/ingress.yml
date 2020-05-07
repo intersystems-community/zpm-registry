@@ -7,7 +7,7 @@ metadata:
     external-dns.alpha.kubernetes.io/hostname: pm2.community.intersystems.com
     kubernetes.io/ingress.global-static-ip-name: prod-pm
   name: zpm-registry
-  namespace: iris
+  namespace: zpm-registry
 spec:
   rules:
   - host: pm2.community.intersystems.com
