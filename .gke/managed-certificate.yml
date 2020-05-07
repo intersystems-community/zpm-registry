@@ -1,7 +1,7 @@
 apiVersion: networking.gke.io/v1beta1
 kind: ManagedCertificate
 metadata:
-  name: zpm-registry-certificate
+  name: zpm-registry
   namespace: zpm-registry
 spec:
   domains:
