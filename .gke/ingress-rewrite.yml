@@ -14,23 +14,7 @@ spec:
       - backend:
           serviceName: zpm-registry
           servicePort: 52773
-        path: /(package.*)
-      - backend:
-          serviceName: zpm-registry
-          servicePort: 52773
-        path: /(_.*)
-      - backend:
-          serviceName: zpm-registry
-          servicePort: 52773
-        path: /(collect.*)
-      - backend:
-          serviceName: zpm-registry
-          servicePort: 52773
-        path: /(swagger.*)
-      - backend:
-          serviceName: zpm-registry
-          servicePort: 52773
-        path: /
+        path: /(.*)
   tls:
   - hosts:
     - pm.myardyas.online
