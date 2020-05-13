@@ -63,8 +63,8 @@ spec:
         volumeMounts:
         - mountPath: /opt/zpm/REGISTRY-DATA
           name: zpm-registry-volume
-        - mountPath: /opt/isc
-          name: zpm-registry-isc
+        - mountPath: /usr/irissys/mgr
+          name: zpm-registry-mgr
         - mountPath: /mount-helper
           name: mount-helper
   volumeClaimTemplates:
@@ -78,12 +78,12 @@ spec:
         requests:
           storage: 10Gi
   - metadata:
-      name: zpm-registry-isc
+      name: zpm-registry-mgr
       namespace: zpm-registry
     spec:
       accessModes:
       - ReadWriteOnce
       resources:
         requests:
-          storage: 1Gi
+          storage: 10Gi
 
