@@ -26,6 +26,10 @@ spec:
       - backend:
           serviceName: zpm-registry
           servicePort: 52773
+        path: /(swagger.*)
+      - backend:
+          serviceName: zpm-registry
+          servicePort: 52773
         path: /
   tls:
   - hosts:
