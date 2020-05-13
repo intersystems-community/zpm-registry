@@ -49,6 +49,9 @@ spec:
         ports:
         - containerPort: 52773
           name: web
+        env:
+        - name: ISC_DATA_DIRECTORY
+          value: /opt/isc/dur
         readinessProbe:
           httpGet:
             path: /csp/sys/UtilHome.csp
@@ -85,5 +88,5 @@ spec:
       - ReadWriteOnce
       resources:
         requests:
-          storage: 1Gi
+          storage: 10Gi
 
