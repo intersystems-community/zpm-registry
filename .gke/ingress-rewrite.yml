@@ -1,0 +1,33 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: zpm-registry-rewrite
+  namespace: zpm-registry
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/rewrite-target: /registry/$1
+spec:
+  rules:
+  - host: pm.myardyas.online
+    http:
+      paths:
+      - backend:
+          serviceName: zpm-registry
+          servicePort: 52773
+        path: /(package.*)
+      - backend:
+          serviceName: zpm-registry
+          servicePort: 52773
+        path: /(_.*)
+      - backend:
+          serviceName: zpm-registry
+          servicePort: 52773
+        path: /(collect.*)
+      - backend:
+          serviceName: zpm-registry
+          servicePort: 52773
+        path: /
+  tls:
+  - hosts:
+    - pm.myardyas.online
+    secretName: zpm-registry
