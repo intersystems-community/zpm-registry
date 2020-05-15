@@ -8,7 +8,7 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /registry/$1
 spec:
   rules:
-  - host: pm.myardyas.online
+  - host: pm.community.intersystems.com
     http:
       paths:
       - backend:
@@ -17,5 +17,5 @@ spec:
         path: /(.*)
   tls:
   - hosts:
-    - pm.myardyas.online
+    - pm.community.intersystems.com
     secretName: zpm-registry

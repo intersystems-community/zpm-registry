@@ -5,10 +5,10 @@ metadata:
   namespace: zpm-registry
   annotations:
     kubernetes.io/ingress.class: nginx
-    certmanager.k8s.io/cluster-issuer: lets-encrypt-staging
+    certmanager.k8s.io/cluster-issuer: lets-encrypt
 spec:
   rules:
-  - host: pm.myardyas.online
+  - host: pm.community.intersystems.com
     http:
       paths:
       - backend:
@@ -17,5 +17,5 @@ spec:
         path: /(csp)
   tls:
   - hosts:
-    - pm.myardyas.online
+    - pm.community.intersystems.com
     secretName: zpm-registry
