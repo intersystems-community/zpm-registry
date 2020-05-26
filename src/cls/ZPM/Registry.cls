@@ -47,7 +47,21 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 /// Package Manager general information
 ClassMethod GetInfo() As %Status
 {
-  SET version = $get(^RegistryVersion, "0.0.2")
+ try {
+	Set tQuery = "select Name,VersionString,Description,ExternalName from %ZPM_PackageManager_Developer.""MODULE"" where name %StartsWith ?"
+	Set tRes = ##class(%SQL.Statement).%ExecDirect(,tQuery,"zpm-registry")
+	
+	If (tRes.%SQLCODE < 0) {
+		Throw ##class(%Exception.SQL).CreateFromSQLCODE(tRes.%SQLCODE,tRes.%Message)
+	}
+	While tRes.%Next(.tSC) {
+		$$$ThrowOnError(tSC)
+		set pList(tRes.%Get("Name"))=$lb(tRes.%Get("VersionString"),tRes.%Get("Description"),tRes.%Get("ExternalName"))
+	}
+	 SET:$DATA(pList("zpm-registry")) ^RegistryVersion = $LISTGET(pList("zpm-registry"),1)
+  } catch ex { } 
+ 
+  SET version = $get(^RegistryVersion,"1.0.2")
   SET info = {
     "version": (version)
   }
