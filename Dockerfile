@@ -10,6 +10,8 @@ USER irisowner
 COPY  Installer.cls SQLPriv.xml ./
 COPY  src src
 COPY zpm-registry.yaml /usr/irissys/
+RUN VERSION=$(grep -oP '(?<=<Version>).*?(?=</Version>)' module.xml) && \
+    sed -i "s/Parameter VERSION.*/Parameter VERSION = \"${VERSION}\";/" ./src/CLS/ZPM/Registry.cls
 
 RUN                                                                 \
   iris start ${ISC_PACKAGE_INSTANCENAME}                         && \
