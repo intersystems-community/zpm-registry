@@ -17,12 +17,15 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   
   <!-- All packages -->
   <Route Url="/packages/-/all" Method="GET" Call="AllPackages" Cors="true" />
+
+    <!-- Package install metrics -->
+  <Route Url="/packages/:package/:version/metrics" Method="GET" Call="PackageMetrics" Cors="true" /> 
   
   <!-- Package manifest -->
   <Route Url="/packages/:package/:version/manifest" Method="GET" Call="PackageManifest" Cors="true" />
   <!-- Package installer -->
   <Route Url="/packages/:package/:version/installer" Method="GET" Call="PackageInstaller" Cors="true" />
-  
+
   <!-- Package information -->
   <Route Url="/packages/:package/?" Method="GET" Call="Package" Cors="true" />
   <!-- Package information with specified version -->
@@ -145,6 +148,21 @@ ClassMethod PackageInstaller(pkg As %String = "", version As %String = "") As %S
     RETURN ..%ProcessResult($$$OK, package.installer)
   }
   RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+}
+
+ClassMethod PackageMetrics(pkg As %String = "", version As %String = "") As %Status
+{
+  Set pkg = $$$lcase(pkg) 
+  Set validVersion = ##class(ZPM.Package).versionValidate(pkg, version)
+  If (validVersion="") {
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  }
+  Set tSC = ##class(ZPM.Analytics.Event).GetMetrics(pkg, version, .tMetrics)
+  If tSC {
+    Return ..%ProcessResult($$$OK, tMetrics)
+  } Else {
+    Return ..%ProcessResult(tSC)
+  }
 }
 
 ClassMethod PublishPackage() As %Status

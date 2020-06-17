@@ -38,6 +38,34 @@ Property Region As %String(%JSONINCLUDE = "none");
 
 Property City As %String(%JSONINCLUDE = "none");
 
+/// pVersion = "*" - data for all versions of pName module
+/// pVersion = "latest" - data for the latest version of pName module
+ClassMethod GetMetrics(pName As %String, pVersion As %String, Output pResult As %DynamicObject) As %Status
+{
+    Set pResult = {}
+    Set tStatement = ##class(%SQL.Statement).%New()
+    If pVersion="*" {
+        // all versions
+        Set sql = "SELECT COUNT(ID) FROM ZPM_Analytics.Event WHERE Action='install' AND Name = ?"
+        Set tSC = tStatement.%Prepare(sql)
+        Return:$$$ISERR(tSC) tSC
+        Set rset = tStatement.%Execute(pName)
+    } Else {
+        Set pVersion = ##class(ZPM.Package).versionValidate(pName, pVersion) 
+        Set sql = "SELECT COUNT(ID) FROM ZPM_Analytics.Event WHERE Action='install' AND Name = ? AND Version = ?"
+        Set tSC = tStatement.%Prepare(sql)
+        Return:$$$ISERR(tSC) tSC
+        Set rset = tStatement.%Execute(pName, pVersion)
+    }
+    If rset.%Next() {
+        Set pResult.name = pName
+        Set pResult.version = pVersion
+        Set pResult.install = {"total":(rset.%GetData(1))}
+        Return $$$OK
+    }
+    Return $$$ERROR(5001, "Sql query execution error")
+}
+
 ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObject) As %Status
 {
     Try {
