@@ -109,4 +109,14 @@ ClassMethod SwaggerSpec() As %Status
   Return ..%ProcessResult($$$OK, swagger)
 }
 
+ClassMethod GetRemoteAddr() As %String
+{
+  If (%request.GetCgiEnv("REMOTE_ADDR")'="") {
+    Return %request.GetCgiEnv("REMOTE_ADDR")
+  } Else {
+    Return $Piece(%request.GetCgiEnv("HTTP_X_FORWARDED_FOR"),",",1)
+  }
+  Return ""
+}
+
 }
