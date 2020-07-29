@@ -266,7 +266,6 @@ ClassMethod DownloadPackageFromGitHub(url As %String) As %String
   Do fs.CopyFromAndSave(ht.HttpResponse.Data)
 
   Set outputFolder = $$$FileTempDir
-  Do ##class(%File).CreateDirectory(outputFolder)
   Set res = $zf(-100, "", "tar", "-zxvf", archiveFileName, "-C", outputFolder)
 
   Return outputFolder
@@ -291,7 +290,6 @@ ClassMethod GetModuleMeta(url As %String) As %DynamicObject
     $$$ThrowStatus($$$ERROR(5001,"Unable to download XML "_ht.Location))
   }
   Set tmpFolder = $$$FileTempDir
-  Do ##class(%File).CreateDirectory(tmpFolder)
 
   Set stream=##class(%Stream.FileCharacter).%New()
   Do stream.LinkToFile(tmpFolder_"/module.xml")
