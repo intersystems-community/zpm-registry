@@ -1,3 +1,5 @@
+# This workflow triggers deployment workflow in 'zpm-registry-deployment' repo
+# It was decided to separate them
 name: Trigger ZPM deployment
 
 on:
