@@ -17,6 +17,9 @@ Import classes from cls and run Installer from Root
 ## Docker Installation
 Build docker container
 
+## ZPM Installation
+`install zpm-registry`
+
 # Usage
 ZPM Registry exposes REST API, which perfoms listing, publising and deployment services. You can examine the REST in the source class [Registry.cls](https://github.com/intersystems-community/zpm-registry/blob/master/src/cls/ZPM/Registry.cls) or via Swagger
 
