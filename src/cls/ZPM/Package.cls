@@ -261,7 +261,6 @@ ClassMethod DownloadPackageFromGitHub(url As %String) As %String
   Do fs.CopyFromAndSave(ht.HttpResponse.Data)
 
   Set outputFolder = $$$FileTempDir
-  Do ##class(%File).CreateDirectory(outputFolder)
   Set res = $zf(-100, "", "tar", "-zxvf", archiveFileName, "-C", outputFolder)
 
   Return outputFolder
@@ -281,16 +280,29 @@ ClassMethod GetModuleMeta(url As %String) As %DynamicObject
     Set ht.Port = port
   }
   Set ht.Location = tComponents("path")_"master/module.xml"
-    
   $$$ThrowOnError(ht.Get())
   If (ht.HttpResponse.StatusCode'=200) {
     $$$ThrowStatus($$$ERROR(5001,"Unable to download XML "_ht.Location))
   }
-  $$$ThrowOnError(##class(%XML.XPATH.Document).CreateFromStream(ht.HttpResponse.Data, .xpathdoc))
+  Set tmpFolder = $$$FileTempDir
+
+  Set stream=##class(%Stream.FileCharacter).%New()
+  Do stream.LinkToFile(tmpFolder_"/module.xml")
+  Set stream.TranslateTable = "UTF8"
+  Do stream.CopyFrom(ht.HttpResponse.Data)
+  Do stream.%Save()
+
+  set binaryStream=##class(%Stream.FileBinary).%New()
+  do binaryStream.LinkToFile(tmpFolder_"/module.xml")
+
+  $$$ThrowOnError(##class(%XML.XPATH.Document).CreateFromStream(binaryStream, .xpathdoc))
   $$$ThrowOnError(xpathdoc.EvaluateExpression("/","Export/Document/Module/Version/text()", .tResults))
   set jo.version = tResults.GetAt(1).ValueGet()
   $$$ThrowOnError(xpathdoc.EvaluateExpression("/","Export/Document/Module/Name/text()", .tResults))
   set jo.name = tResults.GetAt(1).ValueGet()  
+
+  Do ##class(%File).RemoveDirectoryTree(tmpFolder)
+  
   return jo
 }
 
@@ -333,7 +345,6 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
 
 ClassMethod Publish(url As %String, name As %String) As %Status
 {
-
   Set outputFolder = ..DownloadPackageFromGitHub(url)
   Set packageFolder = ##class(%File).NormalizeDirectory(name _ "-master", outputFolder)
   Return ..LoadPackage(packageFolder, url, 1)
