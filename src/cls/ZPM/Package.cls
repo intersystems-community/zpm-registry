@@ -234,11 +234,6 @@ ClassMethod LoadPackage(Path As %String, repository As %String = "", silent As %
   RETURN package.%Save()
 }
 
-ClassMethod GetPackageNameFromRepositoryURL(url As %String) As %String
-{
-  Return $PIECE(url, "/", *-1)
-}
-
 ClassMethod DownloadPackageFromGitHub(url As %String) As %String
 {
   SET url = url _ "archive/master.tar.gz"
@@ -307,8 +302,7 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
     #; set url = $ZCONVERT(url, "L")
     If $Extract(url, *)'="/" {
       Set url = url _ "/"
-    }
-    Set name = ..GetPackageNameFromRepositoryURL(url) 
+    } 
     Set meta = ..GetModuleMeta(url)
     If (meta.version = "") { $$$ThrowStatus($$$ERROR(5001, "Invalid package version")) }
     If (meta.name = "") { $$$ThrowStatus($$$ERROR(5001, "Package name is empty")) }
@@ -319,13 +313,13 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
         If (..NameVersionExists(meta.name,meta.version)) { 
           $$$ThrowStatus($$$ERROR(5001, "Version "_meta.version_" of Package "_meta.name_" is already published"))
         }
-      	Set sc = ..Publish(url, name)	
+      	Set sc = ..Publish(url, meta.name)	
       }
     } Else {
       If (..RepositoryExists(url, .id)) {
 	      $$$ThrowStatus($$$ERROR(5001, "This repository was published under a different name"))
       } else {
-        Set sc = ..Publish(url, name)	
+        Set sc = ..Publish(url, meta.name)	
       }
     }
   } Catch ex {
@@ -353,7 +347,8 @@ ClassMethod LoadFromGitHub(Url = "")
   If $e(Url, *)'="/" { 
     Set Url = Url _ "/"
   }
-  Set name = ..GetPackageNameFromRepositoryURL(Url) 
+  Set meta = ..GetModuleMeta(Url)
+  Set name = meta.name
   Set outputFolder = ..DownloadPackageFromGitHub(Url)
   Set packageFolder = ##class(%File).NormalizeDirectory(name _ "-master", outputFolder)
   Set tSC = ..LoadPackage(packageFolder, Url)
