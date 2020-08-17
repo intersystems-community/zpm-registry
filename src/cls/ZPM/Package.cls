@@ -304,7 +304,7 @@ ClassMethod GetModuleMeta(url As %String) As %DynamicObject
   $$$ThrowOnError(xpathdoc.EvaluateExpression("/","Export/Document/Module/Version/text()", .tResults))
   set jo.version = tResults.GetAt(1).ValueGet()
   $$$ThrowOnError(xpathdoc.EvaluateExpression("/","Export/Document/Module/Name/text()", .tResults))
-  set jo.name = tResults.GetAt(1).ValueGet()  
+  set jo.name = $$$lcase(tResults.GetAt(1).ValueGet())
 
   Do ##class(%File).RemoveDirectoryTree(tmpFolder)
   
