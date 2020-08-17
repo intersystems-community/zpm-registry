@@ -1,0 +1,26 @@
+# This workflow triggers deployment workflow in 'zpm-registry-deployment' repo
+# It was decided to separate them
+name: Trigger ZPM deployment
+
+on:
+  push:
+    branches:
+#      - master
+      - stage
+#  release:
+#    types:
+#      - created
+
+jobs:
+  trigger-zpm-deployment:
+    name: Trigger zpm-registry-deployment via REST API
+    runs-on: ubuntu-18.04
+
+    steps:
+    - name: REST POST call
+      run: |-
+        curl -X POST https://api.github.com/repos/intersystems-community/zpm-registry-deployment/dispatches \
+          -H 'Accept: application/vnd.github.everest-preview+json'                                          \
+          --user ${{ secrets.PAT_USERNAME }}:${{ secrets.PAT }}                                             \
+          --data "{\"event_type\": \"${{ github.event_name }}\", \"client_payload\": { \"zpm_ref_orig\": \"${GITHUB_REF##*/}\", \"zpm_commit_sha_orig\": \"$GITHUB_SHA\" }}"
+

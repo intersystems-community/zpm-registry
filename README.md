@@ -17,8 +17,11 @@ Import classes from cls and run Installer from Root
 ## Docker Installation
 Build docker container
 
+## ZPM Installation
+`install zpm-registry`
+
 # Usage
-ZPM Registry exposes REST API, which perfoms listing, publising and deployment services. You can examine the REST in the source class [REgistry.cls](https://github.com/intersystems-community/zpm-registry/blob/master/src/cls/ZPM/Registry.cls) or via Swagger
+ZPM Registry exposes REST API, which perfoms listing, publising and deployment services. You can examine the REST in the source class [Registry.cls](https://github.com/intersystems-community/zpm-registry/blob/master/src/cls/ZPM/Registry.cls) or via Swagger
 
 Note, when you publish the repo via API you need to provide the GIthub URL of the repo, which will contain module.xml.
 And published package will remember the repository and will not allow to publish/update package with the same name but with another repository.
