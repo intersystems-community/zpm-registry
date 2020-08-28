@@ -31,7 +31,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/packages" Method="POST" Call="PublishPackage" Cors="true" />
   
   <!-- Package Archive -->
-  <Route Url="/:package/-/:file" Method="GET" Call="GetArchive" Cors="true" />
+  <Route Url="/download/:package/-/:file" Method="GET" Call="GetArchive" Cors="true" />
 
 
   <!-- Temp url, update package, should be combined with "POST /packages"-->
