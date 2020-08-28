@@ -5,11 +5,11 @@ name: Trigger ZPM deployment
 on:
   push:
     branches:
-#      - master
+      - master
       - stage
-#  release:
-#    types:
-#      - created
+  release:
+    types:
+      - published
 
 jobs:
   trigger-zpm-deployment:
