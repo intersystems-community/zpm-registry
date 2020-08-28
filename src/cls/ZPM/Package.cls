@@ -98,7 +98,7 @@ Method urlGet() As %String
   SET host = ..ServerURL()
   SET name = $ZCONVERT(..name, "O", "URL")
   SET version = $ZCONVERT(..version, "O", "URL")
-  RETURN host _ "/" _ name _ "/-/" _ name _ "-" _ version _ ".tgz"
+  RETURN host _ "/download/" _ name _ "/-/" _ name _ "-" _ version _ ".tgz"
 }
 
 Method installerUrlGet() As %String
