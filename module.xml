@@ -3,7 +3,8 @@
   <Document name="zpm-registry.ZPM">
     <Module>
       <Name>zpm-registry</Name>
-      <Version>1.0.5</Version>
+      <Description>Registry server for ZPM</Description>
+      <Version>1.0.6</Version>
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>
       <Resource Name="ZPM.PKG"/>
