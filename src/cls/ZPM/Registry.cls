@@ -182,7 +182,7 @@ ClassMethod GetArchive(pkg, fileName) As %Status
     RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
 
-  Do ##class(ZPM.Analytics.Event).SaveEvent("download", %request.GetCgiEnv("REMOTE_ADDR"), {"name":(package.name),"version":(package.version)})
+  Do ##class(ZPM.Analytics.Event).SaveEvent("download", ..GetRemoteAddr(), {"name":(package.name),"version":(package.version)})
   Set token = ##class(%PopulateUtils).StringMin(16,16)
   Set ^IRIS.TempZPMRInst(token) = $Listbuild(pkg, version)
   Do %response.SetHeader("INSTALLTOKEN",token)
@@ -226,7 +226,7 @@ ClassMethod CollectAnalytics(action As %String = "") As %Status
   Set token = %request.GetCgiEnv("HTTP_INSTALLTOKEN")
   If token'="", $Data(^IRIS.TempZPMRInst(token)) {
     Kill ^IRIS.TempZPMRInst(token)
-    Return ##class(ZPM.Analytics.Event).SaveEvent(action, %request.GetCgiEnv("REMOTE_ADDR"), %request.Content)
+    Return ##class(ZPM.Analytics.Event).SaveEvent(action, ..GetRemoteAddr(), %request.Content)
   } 
   Return $$$ERROR(5001, "Invalid token")
 }
