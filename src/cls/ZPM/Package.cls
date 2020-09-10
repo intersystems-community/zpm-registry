@@ -416,14 +416,16 @@ ClassMethod GetSSLConfiguration(host) As %String
 
 Query ListLatest(searchTerm As %String = "") As %SQLQuery(ROWSPEC = "name:%String,description:%String,repository:%String,version:%String")
 {
-SELECT name, description, repository, (
-  SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name 
-  ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) version
+SELECT name, repository, version, description 
 FROM ZPM.Package p1
-WHERE :searchTerm IS NULL OR (
+WHERE 
+  version= (  
+    SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name 
+    ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) 
+  AND (:searchTerm IS NULL OR (
      name %MATCHES :searchTerm
   OR description %MATCHES :searchTerm
-  OR keywords %MATCHES :searchTerm
+  OR keywords %MATCHES :searchTerm)
 )
 GROUP BY name
 ORDER BY name
