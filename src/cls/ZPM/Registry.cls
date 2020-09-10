@@ -158,7 +158,7 @@ ClassMethod PublishPackage() As %Status
   
   set package = ##class(ZPM.Package).%New() 
   $$$ThrowOnError(package.%JSONImport(%request.Content))
-  
+  $$$ThrowOnError(package.UpdateDescriptionFromManifest())
   do ##class(ZPM.Package).NameVersionDelete(package.name, package.version)
   $$$ThrowOnError(package.%Save())
     
@@ -206,6 +206,7 @@ ClassMethod AllPackages() As %Status
   While tRS.%Next() {
     Set tPkgInfo = {
       "name": (tRS.name),
+      "description": (tRS.Description),
       "repository": (tRS.repository),
       "versions": [(tRS.version)]
     }
