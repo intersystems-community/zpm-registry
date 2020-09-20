@@ -15,7 +15,7 @@ Property owner As %String;
 
 Index Owner On owner;
 
-Property description As %String(MAXLEN = 200, TRUNCATE = 1);
+Property description As %String(MAXLEN = 1000, TRUNCATE = 1);
 
 Property keywords As list Of %String;
 
@@ -173,6 +173,28 @@ ClassMethod Populate(Path As %String, kill = 0)
   }
 }
 
+Method UpdateDescriptionFromManifest() As %Status
+{
+  Try {
+    //save xml to file
+    Set tFileName = $$$FileTempDir_"/manifest.xml"
+    Set stream=##class(%Stream.FileCharacter).%New()
+    $$$ThrowOnError(stream.LinkToFile(tFileName))
+    $$$ThrowOnError(stream.CopyFrom(..manifest))
+    $$$ThrowOnError(stream.%Save())
+    Kill stream
+    $$$ThrowOnError(##class(%XML.XPATH.Document).CreateFromFile(tFileName, .tDocument))
+    $$$ThrowOnError(tDocument.EvaluateExpression("/Module/Description", "text()", .tRes))
+    If (tRes.Count()>0) {
+      Set ..description = tRes.GetAt(1).Value
+    }
+  } Catch ex {
+    Do ex.Log()
+    return ex.AsStatus()
+  }
+  return $$$OK
+}
+
 ClassMethod LoadPackage(Path As %String, repository As %String = "", silent As %Boolean = 0) As %Status
 {
   SET tStream = ##class(%Stream.FileCharacter).%New()
@@ -205,6 +227,10 @@ ClassMethod LoadPackage(Path As %String, repository As %String = "", silent As %
     WRITE !,"Version: ", version
   }
 
+  SET tSC=tDocument.EvaluateExpression("/Export/Document/Module/Description", "text()", .tRes)
+  IF $$$ISERR(tSC) Return tSC
+  SET description = tRes.GetAt(1).Value
+
   SET archive = ##class(%Stream.FileBinary).%New()
   SET archiveFileName = ##class(%File).TempFilename("tgz")
   SET archive.Filename = archiveFileName
@@ -220,6 +246,7 @@ ClassMethod LoadPackage(Path As %String, repository As %String = "", silent As %
   do ..%DeleteId(name _ "||" _version)
   SET package = ..%New()
   SET package.name = name
+  Set package.description = description
   Set package.repository = repository
   SET package.version = version
   SET package.package = archive
@@ -387,16 +414,18 @@ ClassMethod GetSSLConfiguration(host) As %String
   QUIT host
 }
 
-Query ListLatest(searchTerm As %String = "") As %SQLQuery(ROWSPEC = "name:%String,repository:%String,version:%String")
+Query ListLatest(searchTerm As %String = "") As %SQLQuery(ROWSPEC = "name:%String,description:%String,repository:%String,version:%String")
 {
-SELECT name, repository, (
-  SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name 
-  ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) version
+SELECT name, repository, version, description 
 FROM ZPM.Package p1
-WHERE :searchTerm IS NULL OR (
+WHERE 
+  version= (  
+    SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name 
+    ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) 
+  AND (:searchTerm IS NULL OR (
      name %MATCHES :searchTerm
   OR description %MATCHES :searchTerm
-  OR keywords %MATCHES :searchTerm
+  OR keywords %MATCHES :searchTerm)
 )
 GROUP BY name
 ORDER BY name
