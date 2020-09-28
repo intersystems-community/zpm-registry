@@ -231,6 +231,7 @@ ClassMethod LoadPackage(Path As %String, repository As %String = "", silent As %
     WRITE !,"Version: ", version
   }
 
+  Set description = ""
   Set tSC=tDocument.EvaluateExpression("/Export/Document/Module/Description", "text()", .tRes)
   IF $$$ISERR(tSC) Return tSC
   If $IsObject(tRes.GetAt(1)) {
