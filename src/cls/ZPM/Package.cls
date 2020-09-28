@@ -212,7 +212,9 @@ ClassMethod LoadPackage(Path As %String, repository As %String = "", silent As %
 
   SET tSC=tDocument.EvaluateExpression("/Export/Document/Module/Name", "text()", .tRes)
   IF $$$ISERR(tSC) Return tSC
-
+  If '$IsObject(tRes.GetAt(1)) {
+    Return $$$ERROR($$$GeneralError, "Name required")
+  }
   SET name = tRes.GetAt(1).Value
   SET name = $$$lcase(name)
   If ('silent) {
@@ -221,15 +223,20 @@ ClassMethod LoadPackage(Path As %String, repository As %String = "", silent As %
 
   SET tSC=tDocument.EvaluateExpression("/Export/Document/Module/Version", "text()", .tRes)
   IF $$$ISERR(tSC) Return tSC
-
+  If '$IsObject(tRes.GetAt(1)) {
+    Return $$$ERROR($$$GeneralError, "Version required")
+  }
   SET version = tRes.GetAt(1).Value
   If ('silent) {
     WRITE !,"Version: ", version
   }
 
-  SET tSC=tDocument.EvaluateExpression("/Export/Document/Module/Description", "text()", .tRes)
+  Set description = ""
+  Set tSC=tDocument.EvaluateExpression("/Export/Document/Module/Description", "text()", .tRes)
   IF $$$ISERR(tSC) Return tSC
-  SET description = tRes.GetAt(1).Value
+  If $IsObject(tRes.GetAt(1)) {
+    Set description = tRes.GetAt(1).Value
+  }
 
   SET archive = ##class(%Stream.FileBinary).%New()
   SET archiveFileName = ##class(%File).TempFilename("tgz")
@@ -343,7 +350,6 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
   Set outputFolder = ""
   Try {
     Set url = jo.repository
-    #; set url = $ZCONVERT(url, "L")
     If $Extract(url, *)'="/" {
       Set url = url _ "/"
     } 
@@ -351,7 +357,10 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
     Set meta = ..GetModuleMeta(url)
     If (meta.version = "") { $$$ThrowStatus($$$ERROR(5001, "Invalid package version")) }
     If (meta.name = "") { $$$ThrowStatus($$$ERROR(5001, "Package name is empty")) }
-    If (..NameExists(meta.name, .id)) { 
+    Set tName = meta.name
+    Set id = ""
+    &sql(SELECT ID into :id FROM ZPM.Package WHERE name=:tName ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease  DESC)
+    If (id'="") { 
       If (..repositoryGetStored(id)'=url) { 
         $$$ThrowStatus($$$ERROR(5001, "Invalid repository for this Package"))
       } Else { 
@@ -363,17 +372,17 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
     } Else {
       If (..RepositoryExists(url, .id)) {
 	      $$$ThrowStatus($$$ERROR(5001, "This repository was published under a different name"))
-      } else {
+      } Else {
         Set sc = ..Publish(url, name)	
       }
     }
   } Catch ex {
     Set sc = ex.AsStatus() 
   }
-  if (outputFolder'="") {
-    do ##class(%File).RemoveDirectoryTree(outputFolder)
+  If (outputFolder'="") {
+    Do ##class(%File).RemoveDirectoryTree(outputFolder)
   }  
-  return sc
+  Return sc
 }
 
 ClassMethod Publish(url As %String, name As %String) As %Status
