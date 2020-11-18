@@ -273,10 +273,29 @@ ClassMethod GetPackageNameFromRepositoryURL(url As %String) As %String
   Return $PIECE(url, "/", *-1)
 }
 
+ClassMethod GetDefaultBranch(path As %String) As %String
+{
+  If ($Extract(path,$Length(path))="/") {
+    Set path = $Extract(path,1,*-1)
+  }
+  Set branch = "main"
+  Set ht = ##class(%Net.HttpRequest).%New()
+  Set ht.Server = "api.github.com"
+  Set ht.SSLConfiguration = ..GetSSLConfiguration(ht.Server)
+  Set ht.Https = 1
+  Set ht.Location = "/repos"_path 
+  $$$ThrowOnError(ht.Get())
+  If (ht.HttpResponse.StatusCode=200) {
+    Set jo = {}.%FromJSON(ht.HttpResponse.Data)
+    Set branch = jo."default_branch" 
+  }
+  return branch
+}
+
 ClassMethod DownloadPackageFromGitHub(url As %String) As %String
 {
-  SET url = url _ "archive/master.tar.gz"
   Do ##class(%Net.URLParser).Parse(url, .tComponents)
+  Set branch = ..GetDefaultBranch(tComponents("path"))
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = tComponents("host")
   If $get(tComponents("scheme"))="https" {
@@ -286,8 +305,7 @@ ClassMethod DownloadPackageFromGitHub(url As %String) As %String
   If $data(tComponents("port"), port), port'="" {
     Set ht.Port = port
   }
-  Set ht.Location = tComponents("path")
-
+  Set ht.Location = tComponents("path")_"archive/"_branch_".tar.gz"
   $$$ThrowOnError(ht.Get())
   If (ht.HttpResponse.StatusCode'=200) {
     $$$ThrowStatus($$$ERROR(5001,"Unable to download repository "_url))
