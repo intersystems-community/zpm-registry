@@ -292,7 +292,7 @@ ClassMethod GetDefaultBranch(path As %String) As %String
   return branch
 }
 
-ClassMethod DownloadPackageFromGitHub(url As %String) As %String
+ClassMethod DownloadPackageFromGitHub(url As %String, Output branch As %String) As %String
 {
   Do ##class(%Net.URLParser).Parse(url, .tComponents)
   Set branch = ..GetDefaultBranch(tComponents("path"))
@@ -405,8 +405,9 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
 
 ClassMethod Publish(url As %String, name As %String) As %Status
 {
-  Set outputFolder = ..DownloadPackageFromGitHub(url)
-  Set packageFolder = ##class(%File).NormalizeDirectory(name _ "-master", outputFolder)
+  Set branch = "master"
+  Set outputFolder = ..DownloadPackageFromGitHub(url, .branch)
+  Set packageFolder = ##class(%File).NormalizeDirectory(name_"-"_branch, outputFolder)
   Return ..LoadPackage(packageFolder, url, 1)
 }
 
@@ -419,8 +420,9 @@ ClassMethod LoadFromGitHub(Url = "")
     Set Url = Url _ "/"
   }
   Set name = ..GetPackageNameFromRepositoryURL(Url)
-  Set outputFolder = ..DownloadPackageFromGitHub(Url)
-  Set packageFolder = ##class(%File).NormalizeDirectory(name _ "-master", outputFolder)
+  Set branch = "master"
+  Set outputFolder = ..DownloadPackageFromGitHub(Url, .branch)
+  Set packageFolder = ##class(%File).NormalizeDirectory(name_"-"_branch, outputFolder)
   Set tSC = ..LoadPackage(packageFolder, Url)
   If $$$ISERR(tSC) { 
     Do $system.OBJ.DisplayError() 
