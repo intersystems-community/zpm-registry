@@ -79,18 +79,19 @@ ClassMethod GetPackageHash(pStream As %Stream.Object) As %String
 
 ClassMethod ServerURL() As %String
 {
-  SET host = ""
-  IF $ISOBJECT($GET(%request)) {
-    set tSecure = %request.Secure 
-    SET host = %request.GetCgiEnv("HTTP_X_FORWARDED_HOST", %request.GetCgiEnv("SERVER_NAME"))
-    set proto = %request.GetCgiEnv("HTTP_X_FORWARDED_PROTO", $SELECT(tSecure: "https", 1: "http"))
-    SET port = %request.GetCgiEnv("HTTP_X_FORWARDED_PORT", %request.GetCgiEnv("SERVER_PORT"))
-    SET host = proto _ "://" _ host
-    IF '$LISTFIND($LISTBUILD(80, 443), port) {
-      SET host = host_":"_port
+  Set host = ""
+  If $ISOBJECT($Get(%request)) {
+    Set tSecure = %request.Secure 
+    Set host = %request.GetCgiEnv("HTTP_X_FORWARDED_HOST", %request.GetCgiEnv("SERVER_NAME"))
+    Set proto = %request.GetCgiEnv("HTTP_X_FORWARDED_PROTO", $SELECT(tSecure: "https", 1: "http"))
+    Set port = %request.GetCgiEnv("HTTP_X_FORWARDED_PORT", %request.GetCgiEnv("SERVER_PORT"))
+    Set host = proto _ "://" _ host
+    If '$LISTFIND($LISTBUILD(80, 443), port) {
+      Set host = host_":"_port
     }    
   }
-  RETURN host
+  Set host = host_$p(%request.Application,"/",1,*-1)
+  Return host
 }
 
 Method urlGet() As %String
