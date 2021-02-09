@@ -91,60 +91,55 @@ ClassMethod Reset() As %Status
 
 ClassMethod Package(pkg As %String = "", version As %String = "") As %Status
 {
-  SET pkg = $$$lcase(pkg)
-  set version = ##class(ZPM.Package).versionValidate(pkg, version)
-  if (version="") {
-    RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  Set pkg = $$$lcase(pkg)
+  Set version = ##class(ZPM.Package).VersionFind(pkg, version)
+  If (version = "") {
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
-
-  SET package = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
-  IF '$isobject(package) {
-    RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  Set package = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
+  If ('$isobject(package)) {
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
-  
-  RETURN ..%ProcessResult($$$OK, package)
+  Return ..%ProcessResult($$$OK, package)
 }
 
 ClassMethod PackageManifest(pkg As %String = "", version As %String = "") As %Status
 {
-  SET pkg = $$$lcase(pkg)  
-  set version = ##class(ZPM.Package).versionValidate(pkg, version)
-  if (version="") {
-    RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  Set pkg = $$$lcase(pkg)    
+  Set version = ##class(ZPM.Package).VersionFind(pkg, version)
+  If (version = "") {
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
-
-  SET package = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
-  IF '$isobject(package) {
-    RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  Set package = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
+  If ('$isobject(package)) {
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
-  
   If package.manifest.Size {
     Set %response.ContentType = "text/xml"
-    RETURN ..%ProcessResult($$$OK, package.manifest)
+    Return ..%ProcessResult($$$OK, package.manifest)
   }
-  RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
 }
 
 ClassMethod PackageInstaller(pkg As %String = "", version As %String = "") As %Status
 {
-  SET pkg = $$$lcase(pkg)  
-  set version = ##class(ZPM.Package).versionValidate(pkg, version)
-  if (version="") {
-    RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  Set pkg = $$$lcase(pkg)  
+  Set version = ##class(ZPM.Package).VersionFind(pkg, version)
+  If (version = "") {
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
 
-  SET package = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
-  IF '$isobject(package) {
-    RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  Set package = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
+  If ('$isobject(package)) {
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
-  
   If package.installer.Size {
     Set filename = pkg_"-"_version_".xml"
     Set %response.ContentType = "text/xml"
     Do %response.SetHeader("Content-Disposition", "attachment; filename="""_filename_"""")
-    RETURN ..%ProcessResult($$$OK, package.installer)
+    Return ..%ProcessResult($$$OK, package.installer)
   }
-  RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
 }
 
 ClassMethod PublishPackage() As %Status
@@ -159,7 +154,7 @@ ClassMethod PublishPackage() As %Status
   set package = ##class(ZPM.Package).%New() 
   $$$ThrowOnError(package.%JSONImport(%request.Content))
   $$$ThrowOnError(package.UpdateDescriptionFromManifest())
-  do ##class(ZPM.Package).NameVersionDelete(package.name, package.version)
+  do ##class(ZPM.Package).DeleteExistingPackages(package.name, package.version)
   $$$ThrowOnError(package.%Save())
     
   Return ..Package(package.name, package.version)
@@ -198,22 +193,18 @@ ClassMethod GetArchive(pkg, fileName) As %Status
 ClassMethod AllPackages() As %Status
 {
   Set tList = []
-  
-  Set tRS = ##class(ZPM.Package).ListLatestFunc()
-  If (tRS.%SQLCODE=-99) {
-    return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN)
+  Set searchTerms = ""
+  Try {
+    Set searchTerms = [].%FromJSON(%request.Get("q"))
+  } Catch ex {}
+  $$$ThrowOnError(##class(ZPM.UpLink).UpdatePackagesFromAllUpLinks())
+
+  Set tList = ##class(ZPM.Package).GetLatest(searchTerms, .tSC)
+
+  If ($$$ISERR(tSC)) {
+    return ..ReportHttpStatusCode(..#HTTP400BADREQUEST, tSC)
   }
-  While tRS.%Next() {
-    Set tPkgInfo = {
-      "name": (tRS.name),
-      "description": (tRS.Description),
-      "repository": (tRS.repository),
-      "versions": [(tRS.version)]
-    }
-    do tList.%Push(tPkgInfo)
-  }
-  
-  RETURN ..%ProcessResult($$$OK, tList)
+  Return ..%ProcessResult($$$OK, tList)
 }
 
 ClassMethod CollectAnalytics(action As %String = "") As %Status
