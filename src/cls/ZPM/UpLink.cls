@@ -73,7 +73,6 @@ ClassMethod UpdatePackagesFromAllUpLinks() As %Status
     Set resultset=statement.%Execute()
     While resultset.%Next() {
         Set uplink = ..%OpenId(resultset.ID)
-        W "*********"_$$$NL_uplink.Name_$$$NL
         Do uplink.UpdatePackagesFromOneUpLink()
     } 
     Return $$$OK
