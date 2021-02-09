@@ -16,4 +16,12 @@
     <Grantor>_SYSTEM</Grantor>
     <Grantable>0</Grantable>
   </SQLPrivileges>
+  <SQLPrivileges>
+    <Namespace>REGISTRY</Namespace>
+    <SQLObject>1,ZPM.UpLink</SQLObject>
+    <Privilege>s</Privilege>
+    <Grantee>_PUBLIC</Grantee>
+    <Grantor>_SYSTEM</Grantor>
+    <Grantable>0</Grantable>
+  </SQLPrivileges>
 </SQLPrivilegesExport>
