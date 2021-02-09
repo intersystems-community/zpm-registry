@@ -35,9 +35,18 @@ Method MatchWhiteList(pkg) As %Boolean
 {
     For i=1:1:$Length(..PackagesWhiteList,",") {
         Set pattern = $Piece(..PackagesWhiteList,",",i)
-        Set x = 0
-        &sql(SELECT 1 into :x WHERE :pkg %MATCHES :pattern)
-        If (x = 1) {
+        Set sql = "SELECT 1 WHERE ? %MATCHES ?"
+        Set tStatement = ##class(%SQL.Statement).%New()
+        Set tStatus = tStatement.%Prepare(sql)
+        If ($$$ISERR(tStatus)) { 
+            Return 0
+        }
+        Set tResult = tStatement.%Execute(pkg, pattern)
+        If (tResult.%SQLCODE<0) {
+            Return 0
+        }
+        If tResult.%Next() {
+
             Return 1
         }
     }
@@ -64,6 +73,7 @@ ClassMethod UpdatePackagesFromAllUpLinks() As %Status
     Set resultset=statement.%Execute()
     While resultset.%Next() {
         Set uplink = ..%OpenId(resultset.ID)
+        W "*********"_$$$NL_uplink.Name_$$$NL
         Do uplink.UpdatePackagesFromOneUpLink()
     } 
     Return $$$OK
@@ -232,7 +242,7 @@ Method DeleteNewerVersions(name As %String, version As %String = "")
 
 Method AddPackage(pPackage As %DynamicObject) As %Status
 {
-    // If this package Exists as Local (published directli to this repo)
+    // If this package Exists as Local (published directly to this repo)
     If ( ##class(ZPM.Package).NameUpLinkExists(pPackage.name, "") ) {
         Return 0
     }
