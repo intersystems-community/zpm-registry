@@ -144,21 +144,21 @@ Method versionsGet() As %ListOfDataTypes
 ClassMethod VersionFind(pkg As %String = "", version As %String = "") As %String
 {
   If (version = "") || (version = "latest") || (version = "*") {
-    // Если пакет опубликован в этом реестре отдаем последнюю версию 
+    // package was published directly in this registry - return the last version
     &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package WHERE Name = :pkg AND UpLink IS NULL
           ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC
     )
     If SQLCODE=0 { 
-      // нашли пакет локально - значие его и надо отдавать
+      // found 
       Return version
     } Else {
-      // пытаемся найти пакет во внешних реестрах, поскольку там может оказаться версия больше чем в кеше, а может и не оказаться 
+      // find the latest version in UpLinks 
       Do ##class(ZPM.UpLink).LoadPackageFromAllUpLinks(pkg, "latest")
       &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package WHERE Name = :pkg
           ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC
       )
       If SQLCODE=0 { 
-        // проверяем полноценная ли это версия (есть ли манифест)
+        // if manifest doesn''t exists - find in uplinks
         Set package = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
         If ('$IsObject(package)) { Return ""}
         If (package.manifest.Size) { Return version }
@@ -169,22 +169,17 @@ ClassMethod VersionFind(pkg As %String = "", version As %String = "") As %String
     }
   } Else {
     If ( ##class(ZPM.Package).NameUpLinkExists(pkg, "") ) {
-      // пакет опубликован в этом реестре, значит внешние реестры не используем
       If ..%ExistsId(pkg _ "||" _ version) {
         Return version
       } 
       Return ""
     } Else {
-      // указана конкретная версия смотрим есть ли она у нас
       If ..%ExistsId(pkg _ "||" _ version) {
-        // проверяем полна ли она (есть ли манифест?)
         Set package = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
         If ('$IsObject(package)) { Return ""}
         If (package.manifest.Size) { Return version }
       } 
-
       Do ##class(ZPM.UpLink).LoadPackageFromAllUpLinks(pkg, version)
-
       If ..%ExistsId(pkg _ "||" _ version) {
         Return version
       }
