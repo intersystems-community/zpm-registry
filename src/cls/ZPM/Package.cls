@@ -29,11 +29,11 @@ Index Repository On repository;
 
 Property dependencies As array Of %String;
 
-Property package As %Stream.GlobalBinary(%JSONINCLUDE = "INPUTONLY") [ Required ];
+Property package As %Stream.GlobalBinary(%JSONINCLUDE = "INPUTONLY");
 
 Property size As %Integer(%JSONINCLUDE = "OUTPUTONLY");
 
-Property manifest As %Stream.GlobalCharacter(%JSONINCLUDE = "INPUTONLY") [ Required ];
+Property manifest As %Stream.GlobalCharacter(%JSONINCLUDE = "INPUTONLY");
 
 Property installer As %Stream.GlobalCharacter(%JSONINCLUDE = "INPUTONLY");
 
@@ -55,6 +55,10 @@ Property versionPrerelease As %String [ SqlComputeCode = {Set {*} = $Piece($Piec
 
 Property versionBuildmetadata As %String [ SqlComputeCode = {Set {*} = $Piece({version},"+",2)}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
+Property UpLink As ZPM.UpLink(%JSONINCLUDE = "NONE");
+
+Index NameUpLink On (name, UpLink);
+
 Method nameSet(value As %String) As %Status
 {
   set i%name = $$$lcase(value)
@@ -68,6 +72,7 @@ Method sizeGet() As %Integer
 
 ClassMethod GetPackageHash(pStream As %Stream.Object) As %String
 {
+  If (pStream="") { Return "" }
   If '$isobject(pStream) Set pStream = ..packageOpen(pStream)
   set hash = $system.Encryption.SHA1HashStream(pStream)
   Set str="" 
@@ -90,7 +95,7 @@ ClassMethod ServerURL() As %String
       Set host = host_":"_port
     }    
   }
-  Set host = host_$p(%request.Application,"/",1,*-1)
+  //Set host = host_$p(%request.Application,"/",1,*-1)
   Return host
 }
 
@@ -134,6 +139,66 @@ Method versionsGet() As %ListOfDataTypes
     do tList.Insert(version)
   }
   return tList
+}
+
+ClassMethod VersionFind(pkg As %String = "", version As %String = "") As %String
+{
+  If (version = "") || (version = "latest") || (version = "*") {
+    // Если пакет опубликован в этом реестре отдаем последнюю версию 
+    &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package WHERE Name = :pkg AND UpLink IS NULL
+          ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC
+    )
+    If SQLCODE=0 { 
+      // нашли пакет локально - значие его и надо отдавать
+      Return version
+    } Else {
+      // пытаемся найти пакет во внешних реестрах, поскольку там может оказаться версия больше чем в кеше, а может и не оказаться 
+      Do ##class(ZPM.UpLink).LoadPackageFromAllUpLinks(pkg, "latest")
+      &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package WHERE Name = :pkg
+          ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC
+      )
+      If SQLCODE=0 { 
+        // проверяем полноценная ли это версия (есть ли манифест)
+        Set package = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
+        If ('$IsObject(package)) { Return ""}
+        If (package.manifest.Size) { Return version }
+        Do ##class(ZPM.UpLink).LoadPackageFromAllUpLinks(pkg, version)
+        Return version
+      } 
+      Return ""
+    }
+  } Else {
+    If ( ##class(ZPM.Package).NameUpLinkExists(pkg, "") ) {
+      // пакет опубликован в этом реестре, значит внешние реестры не используем
+      If ..%ExistsId(pkg _ "||" _ version) {
+        Return version
+      } 
+      Return ""
+    } Else {
+      // указана конкретная версия смотрим есть ли она у нас
+      If ..%ExistsId(pkg _ "||" _ version) {
+        // проверяем полна ли она (есть ли манифест?)
+        Set package = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
+        If ('$IsObject(package)) { Return ""}
+        If (package.manifest.Size) { Return version }
+      } 
+
+      Do ##class(ZPM.UpLink).LoadPackageFromAllUpLinks(pkg, version)
+
+      If ..%ExistsId(pkg _ "||" _ version) {
+        Return version
+      }
+      Return ""
+    }
+  }
+}
+
+ClassMethod DeleteExistingPackages(pkg, version) As %Status
+{
+  // delete all "proxy" packages
+  &sql(DELETE FROM ZPM.Package WHERE Name = :pkg AND UpLink IS NOT NULL)
+  Do ..NameVersionDelete(pkg, version)
+  Return 1
 }
 
 ClassMethod versionValidate(pkg As %String = "", version As %String = "") As %String
@@ -251,7 +316,7 @@ ClassMethod LoadPackage(Path As %String, repository As %String = "", silent As %
     WRITE "ArchiveSize: " _ archive.Size
   }
 
-  do ..%DeleteId(name _ "||" _version)
+  do ..DeleteExistingPackages(name,version)
   SET package = ..%New()
   SET package.name = name
   Set package.description = description
@@ -282,7 +347,7 @@ ClassMethod GetDefaultBranch(path As %String) As %String
   Set branch = "main"
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = "api.github.com"
-  Set ht.SSLConfiguration = ..GetSSLConfiguration(ht.Server)
+  Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration(ht.Server)
   Set ht.Https = 1
   Set ht.Location = "/repos"_path 
   $$$ThrowOnError(ht.Get())
@@ -300,7 +365,7 @@ ClassMethod DownloadPackageFromGitHub(url As %String, Output branch As %String) 
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = tComponents("host")
   If $get(tComponents("scheme"))="https" {
-    Set ht.SSLConfiguration = ..GetSSLConfiguration(ht.Server)
+    Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration(ht.Server)
     Set ht.Https = 1
   }
   If $data(tComponents("port"), port), port'="" {
@@ -331,7 +396,7 @@ ClassMethod GetModuleMeta(url As %String) As %DynamicObject
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = "raw.githubusercontent.com"
   If $get(tComponents("scheme"))="https" {
-    Set ht.SSLConfiguration = ..GetSSLConfiguration(ht.Server)
+    Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration(ht.Server)
     Set ht.Https = 1
   }
   If $data(tComponents("port"), port), port'="" {
@@ -433,15 +498,61 @@ ClassMethod LoadFromGitHub(Url = "")
   do ##class(%File).RemoveDirectoryTree(outputFolder)
 }
 
-ClassMethod GetSSLConfiguration(host) As %String
+/// returns latest versions of packages 
+ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Status) As %DynamicArray
 {
-  NEW $NAMESPACE
-  SET $NAMESPACE = "%SYS"
-  
-  IF '##class(Security.SSLConfigs).Exists(host) {
-    DO ##class(Security.SSLConfigs).Create(host)
+  Set pStatus = 1
+  If ( '($CLASSNAME(searchTerms)="%Library.DynamicArray" ) || (searchTerms.%Size()=0) ) {
+    // empty query
+    Set searchCondition = " ( 1=1 ) "
+  } Else {
+    Set searchCondition = " ( "
+    Set iter = searchTerms.%GetIterator()
+    Set params = 0
+    While iter.%GetNext(.key , .value ) {
+      if (key=0) {
+        Set searchCondition = searchCondition _ " ((name %MATCHES ?) OR (description %MATCHES ?) OR (keywords %MATCHES ?)) "
+      } else {
+        Set searchCondition = searchCondition _ " OR ((name %MATCHES ?) OR (description %MATCHES ?) OR (keywords %MATCHES ?))"
+      }
+      Set params(params+1) = value
+      Set params(params+2) = value
+      Set params(params+3) = value
+      Set params = params + 3
+    }
+    Set searchCondition = searchCondition_ " ) "
   }
-  QUIT host
+  Set sql = "SELECT name, repository, version, description "_
+            "FROM ZPM.Package p1 "_
+            "WHERE "_
+            "version = ( "_
+            "  SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name "_
+            "  ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) "_
+            "AND "_ searchCondition _
+            "GROUP BY name "_
+            "ORDER BY name"
+  Set tStatement = ##class(%SQL.Statement).%New()
+  Set tStatus = tStatement.%Prepare(sql)
+  If ($$$ISERR(tStatus)) { 
+    Set pStatus = tStatus
+    Return []
+  }
+  Set tResult = tStatement.%Execute(params...)
+  If (tResult.%SQLCODE<0) {
+    Set pStatus = $$$ERROR(5001, "Error executing sql statement")
+    Return []
+  }
+  Set tList = []
+  While tResult.%Next() {
+    Set tPkgInfo = {
+      "name": (tResult.name),
+      "description": (tResult.Description),
+      "repository": (tResult.repository),
+      "versions": [(tResult.version)]
+    }
+    do tList.%Push(tPkgInfo)
+  }
+  Return tList
 }
 
 Query ListLatest(searchTerm As %String = "") As %SQLQuery(ROWSPEC = "name:%String,description:%String,repository:%String,version:%String")
@@ -517,6 +628,9 @@ Storage Default
 </Value>
 <Value name="18">
 <Value>versionBuildmetadata</Value>
+</Value>
+<Value name="19">
+<Value>UpLink</Value>
 </Value>
 </Data>
 <Data name="dependencies">
