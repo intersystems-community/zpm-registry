@@ -34,7 +34,7 @@ XData setup
   </Invoke>
 
   <Invoke Class="ZPM.Utils" Method="BuildIndices"></Invoke>
-  <Invoke Class="ZPM.Utils" Method="AddSSLConfiguration"></Invoke>
+
 
   <Invoke Class="Security.SQLPrivileges" Method="Import" CheckStatus="true">
     <Arg Value="${APPPATH}SQLPriv.xml"/>
