@@ -8,7 +8,7 @@
       <Packaging>module</Packaging>
       <SourcesRoot>src</SourcesRoot>
       <Resource Name="ZPM.PKG"/>
-
+      <Invoke Class="ZPM.Utils" Method="BuildIndices"></Invoke>
       <CSPApplication 
         Url="/registry"
         Path="/src"

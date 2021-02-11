@@ -29,6 +29,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/packages/:package/:version" Method="GET" Call="Package" Cors="true" />
   <!-- Publish Package -->
   <Route Url="/packages" Method="POST" Call="PublishPackage" Cors="true" />
+
+  <!-- Unpublish Package -->
+  <Route Url="/packages/:package/:version" Method="Delete" Call="UnPublishPackage" Cors="true" />
+
   
   <!-- Package Archive -->
   <Route Url="/download/:package/-/:file" Method="GET" Call="GetArchive" Cors="true" />
@@ -140,6 +144,25 @@ ClassMethod PackageInstaller(pkg As %String = "", version As %String = "") As %S
     Return ..%ProcessResult($$$OK, package.installer)
   }
   Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+}
+
+/// Unpublish (delete) directly published package
+ClassMethod UnPublishPackage(pkg As %String = "", version As %String = "") As %Status
+{
+  If ($USERNAME="UnknownUser") {
+    RETURN ..ReportHttpStatusCode(..#HTTP401UNAUTHORIZED)
+  }
+  Set sc = $$$OK
+  Set pkg = $$$lcase(pkg)
+  Set pPackage = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
+  If ('$isobject(pPackage)) {
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  }
+  If (pPackage.UpLink'="") {
+    // only directly published package could be deleted
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  }
+  Return pPackage.%DeleteID(pPackage.%Id())
 }
 
 ClassMethod PublishPackage() As %Status

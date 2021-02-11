@@ -59,8 +59,12 @@ Method GetHttpRequest()
     Set httprequest = ##class(%Net.HttpRequest).%New()
     Set httprequest.Server = ..Host
     Set httprequest.FollowRedirect = 1
-    If (..Port'="") { Set httprequest.Port = ..Port }
-    Set httprequest.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration(..Host)
+    If (..Port'="") { 
+        Set httprequest.Port = ..Port
+    }
+    If (..SSL) {
+        Set httprequest.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
+    }
     Return httprequest
 }
 

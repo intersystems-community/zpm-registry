@@ -342,7 +342,7 @@ ClassMethod GetDefaultBranch(path As %String) As %String
   Set branch = "main"
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = "api.github.com"
-  Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration(ht.Server)
+  Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
   Set ht.Https = 1
   Set ht.Location = "/repos"_path 
   $$$ThrowOnError(ht.Get())
@@ -360,7 +360,7 @@ ClassMethod DownloadPackageFromGitHub(url As %String, Output branch As %String) 
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = tComponents("host")
   If $get(tComponents("scheme"))="https" {
-    Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration(ht.Server)
+    Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
     Set ht.Https = 1
   }
   If $data(tComponents("port"), port), port'="" {
@@ -391,7 +391,7 @@ ClassMethod GetModuleMeta(url As %String) As %DynamicObject
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = "raw.githubusercontent.com"
   If $get(tComponents("scheme"))="https" {
-    Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration(ht.Server)
+    Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
     Set ht.Https = 1
   }
   If $data(tComponents("port"), port), port'="" {

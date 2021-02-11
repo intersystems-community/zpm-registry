@@ -1,6 +1,8 @@
 Class ZPM.Utils
 {
 
+Parameter SSLCONFIGNAME = "zpmregistry";
+
 /// Reads from pStream
 /// values of elements specified in xPathArray (Array)
 /// returns values in xPathArray values
@@ -52,8 +54,25 @@ ClassMethod ReadXMLElements(pStream As %Stream.Object, xPathArray) As %Status
     }
 }
 
-ClassMethod GetSSLConfiguration(host) As %String
+ClassMethod GetSSLConfiguration() As %String
 {
+    Set host = ..#SSLCONFIGNAME
+    New $NAMESPACE
+    Set $NAMESPACE = "%SYS"
+    If ##class(Security.SSLConfigs).Exists(host) {
+        Return host
+    }
+    Return ""
+}
+
+ClassMethod BuildIndices() As %Status
+{
+    Return ##class(ZPM.Package).%BuildIndices()
+}
+
+ClassMethod AddSSLConfiguration() As %Status
+{
+    Set host = ..#SSLCONFIGNAME
     New $NAMESPACE
     Set $NAMESPACE = "%SYS"
     If '##class(Security.SSLConfigs).Exists(host) {
