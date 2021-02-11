@@ -162,7 +162,7 @@ ClassMethod UnPublishPackage(pkg As %String = "", version As %String = "") As %S
     // only directly published package could be deleted
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
-  Return pPackage.%DeleteID(pPackage.%Id())
+  Return pPackage.%DeleteId(pPackage.%Id())
 }
 
 ClassMethod PublishPackage() As %Status

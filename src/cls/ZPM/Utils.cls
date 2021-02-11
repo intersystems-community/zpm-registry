@@ -61,9 +61,25 @@ ClassMethod GetSSLConfiguration() As %String
     Return ""
 }
 
-ClassMethod BuildIndices() As %Status
+ClassMethod SQLsetup() As %Status
 {
-    Return ##class(ZPM.Package).%BuildIndices()
+    Set tables = $LB("ZPM.Package","ZPM.Package_dependencies","ZPM.UpLink")
+    New $NAMESPACE
+    Set ns = $NAMESPACE
+
+    Set $NAMESPACE = "%SYS"
+
+    For i=1:1:$LISTLENGTH(tables) {
+        Set sp = ##class(Security.SQLPrivileges).%New()
+        Set sp.Grantable = 0
+        Set sp.Grantee = "_PUBLIC"
+        Set sp.Grantor = "_SYSTEM"
+        Set sp.Namespace = ns
+        Set sp.Privilege = "s"
+        Set sp.SQLObject = "1,"_$LISTGET(tables,i)
+        Do sp.%Save()
+    }
+    Return $$$OK
 }
 
 ClassMethod AddSSLConfiguration() As %Status
