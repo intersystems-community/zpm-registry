@@ -57,11 +57,7 @@ ClassMethod ReadXMLElements(pStream As %Stream.Object, xPathArray) As %Status
 ClassMethod GetSSLConfiguration() As %String
 {
     Set host = ..#SSLCONFIGNAME
-    New $NAMESPACE
-    Set $NAMESPACE = "%SYS"
-    If ##class(Security.SSLConfigs).Exists(host) {
-        Return host
-    }
+    Return host
     Return ""
 }
 
