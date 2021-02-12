@@ -67,21 +67,16 @@ ClassMethod UpdateUpLink(pRequest As %CSP.Stream) As %Status
             Set upLink = ..%New()
             Set upLink.Host = host
         } Else {
-
             If (pRequest.active=-1) {
                 // delete
-
                 Return ..HostIndexDelete(host)
             }
             Set upLink = ..HostIndexOpen(host)
         }
-
         Set upLink.Name = host
         If $Data(tComponents("port"), port), port'="" {
             Set upLink.Port = port
         }
-
-
         Set upLink.Location = tComponents("path")
         If $Get(tComponents("scheme"))="https" {
             Set upLink.SSL = 1
@@ -148,6 +143,7 @@ Method GetHttpRequest()
     Set httprequest = ##class(%Net.HttpRequest).%New()
     Set httprequest.Server = ..Host
     Set httprequest.FollowRedirect = 1
+    Set httprequest.Timeout = 10
     If (..Port'="") { 
         Set httprequest.Port = ..Port
     }
