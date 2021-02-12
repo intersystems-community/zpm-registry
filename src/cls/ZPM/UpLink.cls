@@ -5,7 +5,9 @@ Class ZPM.UpLink Extends %Persistent
 /// Remote Registry Label 
 Property Name As %String;
 
-Property Host As %String(MAXLEN = 200);
+Property Host As %String(MAXLEN = 200) [ Required ];
+
+Index HostIndex On Host [ Unique ];
 
 Property Port As %Integer;
 
@@ -18,6 +20,94 @@ Property Position As %Integer;
 Property Active As %Boolean;
 
 Property PackagesWhiteList As %String(MAXLEN = 30000) [ InitialExpression = "*" ];
+
+/// returns JSON Array
+ClassMethod GetAllJSON(Output pSC As %Status) As %DynamicArray
+{
+    Set pSC = $$$OK
+    Set tUpLinksArr = []
+    Set tSql = "SELECT Active, Host, Location, PackagesWhiteList, Port, Position, SSL FROM ZPM.UpLink ORDER BY Position" 
+    Set tStatement = ##class(%SQL.Statement).%New()
+    Set tStatus = tStatement.%Prepare(tSql)
+    If ($$$ISERR(tStatus)) { 
+        Set pSC = tStatus
+        Return tUpLinksArr 
+    }
+    Set tResult = tStatement.%Execute()
+    If (tResult.%SQLCODE<0) {
+        Set pSC = $$$ERROR(5001, %msg)
+        Return tUpLinksArr
+    }
+    While tResult.%Next() {
+        If (tResult.SSL) { 
+            Set url = "https://"
+        } Else { 
+            Set url = "http://" 
+        }
+        Set url = url_tResult.Host
+        If (tResult.Port'="") {
+            Set url = url_":"_tResult.Port
+        }
+        If (tResult.Location '= "") {
+            Set url = url_tResult.Location
+        }
+        Set ul = {"active":(tResult.Active), "url":(url), "package_white_list":(tResult.PackagesWhiteList),"position":(tResult.Position)}
+        Do tUpLinksArr.%Push(ul)
+    }
+    Return tUpLinksArr
+}
+
+ClassMethod UpdateUpLink(pRequest As %CSP.Stream) As %Status
+{
+    Try {
+        Do ##class(%Net.URLParser).Parse(pRequest.url, .tComponents)
+        Set host = tComponents("host")
+        If ('..HostIndexExists(host)) {
+            // add new
+            Set upLink = ..%New()
+            Set upLink.Host = host
+        } Else {
+
+            If (pRequest.active=-1) {
+                // delete
+
+                Return ..HostIndexDelete(host)
+            }
+            Set upLink = ..HostIndexOpen(host)
+        }
+
+        Set upLink.Name = host
+        If $Data(tComponents("port"), port), port'="" {
+            Set upLink.Port = port
+        }
+
+
+        Set upLink.Location = tComponents("path")
+        If $Get(tComponents("scheme"))="https" {
+            Set upLink.SSL = 1
+        }
+
+        Set position = pRequest.position
+        Set upLink.Position = position
+        Set upLink.Active = pRequest.active
+        Set upLink.PackagesWhiteList = pRequest."package_white_list"
+        &sql(UPDATE ZPM.UpLink SET Position = 1+Position WHERE Position >= :position)
+
+        Set tSC = upLink.%Save()
+        Return:$$$ISERR(tSC) tSC
+        Do upLink.DeleteCachedPackages()
+        Return $$$OK
+    } Catch ex {
+        Return ex.AsStatus()
+    }
+}
+
+Method DeleteCachedPackages()
+{
+    Set id = ..%Id()
+    &sql(DELETE FROM ZPM.Package WHERE UpLink = :id)
+    Return $$$OK
+}
 
 Method PackagesWhiteListJSON() As %DynamicArray
 {
@@ -46,7 +136,6 @@ Method MatchWhiteList(pkg) As %Boolean
             Return 0
         }
         If tResult.%Next() {
-
             Return 1
         }
     }

@@ -29,7 +29,6 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/packages/:package/:version" Method="GET" Call="Package" Cors="true" />
   <!-- Publish Package -->
   <Route Url="/packages" Method="POST" Call="PublishPackage" Cors="true" />
-
   <!-- Unpublish Package -->
   <Route Url="/packages/:package/:version" Method="Delete" Call="UnPublishPackage" Cors="true" />
 
@@ -44,6 +43,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   
   <!-- Analytics -->
   <Route Url="/collect/:action" Method="POST" Call="CollectAnalytics" Cors="true" />
+
+  <!-- UpLinks -->
+  <Route Url="/uplinks" Method="GET" Call="AllUpLinks" Cors="true" />
+  <Route Url="/uplinks" Method="POST" Call="UpdateUplink" Cors="true" />
 
 </Routes>
 }
@@ -82,9 +85,7 @@ ClassMethod Reset() As %Status
   If ('..CheckDebug()) {
     Return ..%ProcessResult(..#HTTP403FORBIDDEN)
   }
-
   Set sc = $$$OK
-
   Set tSC = ##class(Package).%KillExtent()
   Set sc = $$$ADDSC(sc, tSC)
   Set tSC = ##class(Package).%PurgeIndices()
@@ -160,7 +161,7 @@ ClassMethod UnPublishPackage(pkg As %String = "", version As %String = "") As %S
   }
   If (pPackage.UpLink'="") {
     // only directly published package could be deleted
-    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+    Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
   }
   Return pPackage.%DeleteId(pPackage.%Id())
 }
@@ -221,7 +222,7 @@ ClassMethod AllPackages() As %Status
     Set searchTerms = [].%FromJSON(%request.Get("q"))
   } Catch ex {}
   $$$ThrowOnError(##class(ZPM.UpLink).UpdatePackagesFromAllUpLinks())
-
+   
   Set tList = ##class(ZPM.Package).GetLatest(searchTerms, .tSC)
 
   If ($$$ISERR(tSC)) {
@@ -244,6 +245,28 @@ ClassMethod CollectAnalytics(action As %String = "") As %Status
     Return ##class(ZPM.Analytics.Event).SaveEvent(action, ..GetRemoteAddr(), %request.Content)
   } 
   Return $$$ERROR(5001, "Invalid token")
+}
+
+ClassMethod AllUpLinks() As %Status
+{
+  Set tList = []
+  Set tList = ##class(ZPM.UpLink).GetAllJSON(.tSC)
+  If ($$$ISERR(tSC)) {
+    return ..ReportHttpStatusCode(..#HTTP400BADREQUEST, tSC)
+  }
+  Return ..%ProcessResult($$$OK, tList)
+}
+
+ClassMethod UpdateUplink() As %Status
+{
+  If ($USERNAME="UnknownUser") {
+    RETURN ..ReportHttpStatusCode(..#HTTP401UNAUTHORIZED)
+  }
+  If (%request.ContentType '= ..#CONTENTTYPEJSON) {    
+    RETURN ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
+  }
+  $$$ThrowOnError(##class(ZPM.UpLink).UpdateUpLink(%request.Content))
+  Return ..%ProcessResult($$$OK)
 }
 
 }
