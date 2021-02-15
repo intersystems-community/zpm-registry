@@ -19,14 +19,14 @@ Property Position As %Integer;
 
 Property Active As %Boolean;
 
-Property PackagesWhiteList As %String(MAXLEN = 30000) [ InitialExpression = "*" ];
+Property PackagesWhitelist As %String(MAXLEN = 30000) [ InitialExpression = "*" ];
 
 /// returns JSON Array
 ClassMethod GetAllJSON(Output pSC As %Status) As %DynamicArray
 {
     Set pSC = $$$OK
     Set tUpLinksArr = []
-    Set tSql = "SELECT Active, Host, Location, PackagesWhiteList, Port, Position, SSL FROM ZPM.UpLink ORDER BY Position" 
+    Set tSql = "SELECT Active, Host, Location, PackagesWhitelist, Port, Position, SSL FROM ZPM.UpLink ORDER BY Position" 
     Set tStatement = ##class(%SQL.Statement).%New()
     Set tStatus = tStatement.%Prepare(tSql)
     If ($$$ISERR(tStatus)) { 
@@ -51,7 +51,7 @@ ClassMethod GetAllJSON(Output pSC As %Status) As %DynamicArray
         If (tResult.Location '= "") {
             Set url = url_tResult.Location
         }
-        Set ul = {"active":(tResult.Active), "url":(url), "package_white_list":(tResult.PackagesWhiteList),"position":(tResult.Position)}
+        Set ul = {"active":(tResult.Active), "url":(url), "package_whitelist":(tResult.PackagesWhitelist),"position":(tResult.Position)}
         Do tUpLinksArr.%Push(ul)
     }
     Return tUpLinksArr
@@ -85,7 +85,7 @@ ClassMethod UpdateUpLink(pRequest As %CSP.Stream) As %Status
         Set position = pRequest.position
         Set upLink.Position = position
         Set upLink.Active = pRequest.active
-        Set upLink.PackagesWhiteList = pRequest."package_white_list"
+        Set upLink.PackagesWhitelist = pRequest."package_whitelist"
         &sql(UPDATE ZPM.UpLink SET Position = 1+Position WHERE Position >= :position)
 
         Set tSC = upLink.%Save()
@@ -104,22 +104,22 @@ Method DeleteCachedPackages()
     Return $$$OK
 }
 
-Method PackagesWhiteListJSON() As %DynamicArray
+Method PackagesWhitelistJSON() As %DynamicArray
 {
-    If (..PackagesWhiteList="") { 
+    If (..PackagesWhitelist="") { 
         Return ""
     }
     Set ja = []
-    For i=1:1:$Length(..PackagesWhiteList,",") {
-        Do ja.%Push($Piece(..PackagesWhiteList,",",i))
+    For i=1:1:$Length(..PackagesWhitelist,",") {
+        Do ja.%Push($Piece(..PackagesWhitelist,",",i))
     } 
     return ja
 }
 
-Method MatchWhiteList(pkg) As %Boolean
+Method MatchWhitelist(pkg) As %Boolean
 {
-    For i=1:1:$Length(..PackagesWhiteList,",") {
-        Set pattern = $Piece(..PackagesWhiteList,",",i)
+    For i=1:1:$Length(..PackagesWhitelist,",") {
+        Set pattern = $Piece(..PackagesWhitelist,",",i)
         Set sql = "SELECT 1 WHERE ? %MATCHES ?"
         Set tStatement = ##class(%SQL.Statement).%New()
         Set tStatus = tStatement.%Prepare(sql)
@@ -171,8 +171,8 @@ Method UpdatePackagesFromOneUpLink() As %Status
 {
     Set httprequest = ..GetHttpRequest()
     Set searchStr = "packages/-/all"
-    If (..PackagesWhiteList'="") {
-        Set searchTerms = ..PackagesWhiteListJSON()
+    If (..PackagesWhitelist'="") {
+        Set searchTerms = ..PackagesWhitelistJSON()
         Set searchStr = "packages/-/all?q="_$$$URLENCODE(searchTerms.%ToJSON())
     }
     Set tSC = httprequest.Get(..Location_searchStr)
@@ -217,7 +217,7 @@ ClassMethod LoadPackageFromAllUpLinks(pkg As %String = "", version As %String = 
 Method LoadPackageFromOneUpLink(pPackage As ZPM.Package, pkg As %String = "", version As %String = "") As %Status
 {
     // проверить что пакет подпадает под допустимые маски в whitelist
-    If ('..MatchWhiteList(pkg)) { 
+    If ('..MatchWhitelist(pkg)) { 
         Return $$$ERROR($$$GeneralError, "invalid package name "_pkg) 
     }
     Try {
@@ -340,7 +340,7 @@ Method AddPackage(pPackage As %DynamicObject) As %Status
     }
 
     // match package name
-    If ('..MatchWhiteList(pPackage.name)) {
+    If ('..MatchWhitelist(pPackage.name)) {
         Return 0
     }
 
@@ -386,7 +386,7 @@ Storage Default
 <Value>Active</Value>
 </Value>
 <Value name="9">
-<Value>PackagesWhiteList</Value>
+<Value>PackagesWhitelist</Value>
 </Value>
 </Data>
 <DataLocation>^ZPM.UpLinkD</DataLocation>
