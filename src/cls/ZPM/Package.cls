@@ -95,7 +95,7 @@ ClassMethod ServerURL() As %String
       Set host = host_":"_port
     }    
   }
-  //Set host = host_$p(%request.Application,"/",1,*-1)
+  Set host = host_$p(%request.Application,"/",1,*-1)
   Return host
 }
 
@@ -342,7 +342,7 @@ ClassMethod GetDefaultBranch(path As %String) As %String
   Set branch = "main"
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = "api.github.com"
-  Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration(ht.Server)
+  Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
   Set ht.Https = 1
   Set ht.Location = "/repos"_path 
   $$$ThrowOnError(ht.Get())
@@ -360,7 +360,7 @@ ClassMethod DownloadPackageFromGitHub(url As %String, Output branch As %String) 
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = tComponents("host")
   If $get(tComponents("scheme"))="https" {
-    Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration(ht.Server)
+    Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
     Set ht.Https = 1
   }
   If $data(tComponents("port"), port), port'="" {
@@ -391,7 +391,7 @@ ClassMethod GetModuleMeta(url As %String) As %DynamicObject
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = "raw.githubusercontent.com"
   If $get(tComponents("scheme"))="https" {
-    Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration(ht.Server)
+    Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
     Set ht.Https = 1
   }
   If $data(tComponents("port"), port), port'="" {
@@ -493,6 +493,15 @@ ClassMethod LoadFromGitHub(Url = "")
   do ##class(%File).RemoveDirectoryTree(outputFolder)
 }
 
+ClassMethod GetTopVersion(pkg As %String) As %String
+{
+  Set version = ""
+  &sql(SELECT TOP 1 version INTO :version FROM ZPM.Package 
+        WHERE name = :pkg
+        ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) 
+  Return version
+}
+
 /// returns latest versions of packages 
 ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Status) As %DynamicArray
 {
@@ -517,13 +526,9 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Stat
     }
     Set searchCondition = searchCondition_ " ) "
   }
-  Set sql = "SELECT name, repository, version, description "_
+  Set sql = "SELECT name, repository, description "_
             "FROM ZPM.Package p1 "_
-            "WHERE "_
-            "version = ( "_
-            "  SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name "_
-            "  ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) "_
-            "AND "_ searchCondition _
+            "WHERE "_ searchCondition _
             "GROUP BY name "_
             "ORDER BY name"
   Set tStatement = ##class(%SQL.Statement).%New()
@@ -543,7 +548,7 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Stat
       "name": (tResult.name),
       "description": (tResult.Description),
       "repository": (tResult.repository),
-      "versions": [(tResult.version)]
+      "versions": [(..GetTopVersion(tResult.name))]
     }
     do tList.%Push(tPkgInfo)
   }

@@ -5,7 +5,9 @@ Class ZPM.UpLink Extends %Persistent
 /// Remote Registry Label 
 Property Name As %String;
 
-Property Host As %String(MAXLEN = 200);
+Property Host As %String(MAXLEN = 200) [ Required ];
+
+Index HostIndex On Host [ Unique ];
 
 Property Port As %Integer;
 
@@ -17,24 +19,117 @@ Property Position As %Integer;
 
 Property Active As %Boolean;
 
-Property PackagesWhiteList As %String(MAXLEN = 30000) [ InitialExpression = "*" ];
+Property PackagesWhitelist As %String(MAXLEN = 30000) [ InitialExpression = "*" ];
 
-Method PackagesWhiteListJSON() As %DynamicArray
+/// returns JSON Array
+ClassMethod GetAllJSON(Output pSC As %Status) As %DynamicArray
 {
-    If (..PackagesWhiteList="") { 
+    Set pSC = $$$OK
+    Set tUpLinksArr = []
+    Set tSql = "SELECT Active, Host, Location, PackagesWhitelist, Port, Position, SSL FROM ZPM.UpLink ORDER BY Position" 
+    Set tStatement = ##class(%SQL.Statement).%New()
+    Set tStatus = tStatement.%Prepare(tSql)
+    If ($$$ISERR(tStatus)) { 
+        Set pSC = tStatus
+        Return tUpLinksArr 
+    }
+    Set tResult = tStatement.%Execute()
+    If (tResult.%SQLCODE<0) {
+        Set pSC = $$$ERROR(5001, %msg)
+        Return tUpLinksArr
+    }
+    While tResult.%Next() {
+        If (tResult.SSL) { 
+            Set url = "https://"
+        } Else { 
+            Set url = "http://" 
+        }
+        Set url = url_tResult.Host
+        If (tResult.Port'="") {
+            Set url = url_":"_tResult.Port
+        }
+        If (tResult.Location '= "") {
+            Set url = url_tResult.Location
+        }
+        Set ul = {"active":(tResult.Active), "url":(url), "package_whitelist":(tResult.PackagesWhitelist),"position":(tResult.Position)}
+        Do tUpLinksArr.%Push(ul)
+    }
+    Return tUpLinksArr
+}
+
+ClassMethod UpdateUpLink(pRequest As %CSP.Stream) As %Status
+{
+    Try {
+        Do ##class(%Net.URLParser).Parse(pRequest.url, .tComponents)
+        Set host = tComponents("host")
+        If ('..HostIndexExists(host)) {
+            &sql(SELECT MAX(Position)+1 INTO :maxposition FROM ZPM.UpLink)
+            // add new
+            Set upLink = ..%New()
+            Set upLink.Host = host
+            Set upLink.Position = maxposition
+            Set upLink.PackagesWhitelist = "*"
+            Set upLink.Active = 1
+        } Else {
+            If (pRequest.active=-1) {
+                // delete
+                Return ..HostIndexDelete(host)
+            }
+            Set upLink = ..HostIndexOpen(host)
+        }
+        Set upLink.Name = host
+        If $Data(tComponents("port"), port), port'="" {
+            Set upLink.Port = port
+        }
+        Set upLink.Location = tComponents("path")
+        If $Get(tComponents("scheme"))="https" {
+            Set upLink.SSL = 1
+        }
+
+        If (pRequest.position'="") {
+            Set position = pRequest.position
+            Set upLink.Position = position
+            &sql(UPDATE ZPM.UpLink SET Position = 1+Position WHERE Position >= :position)
+        }
+        If (pRequest.active'="") {
+            Set upLink.Active = pRequest.active
+        }
+        If (pRequest."package_whitelist" '= "") {
+            Set upLink.PackagesWhitelist = pRequest."package_whitelist"
+        }
+
+        Set tSC = upLink.%Save()
+        Return:$$$ISERR(tSC) tSC
+        Do upLink.DeleteCachedPackages()
+        Return $$$OK
+    } Catch ex {
+        Return ex.AsStatus()
+    }
+}
+
+Method DeleteCachedPackages()
+{
+    Set id = ..%Id()
+    &sql(DELETE FROM ZPM.Package WHERE UpLink = :id)
+    Return $$$OK
+}
+
+Method PackagesWhitelistJSON() As %DynamicArray
+{
+    If (..PackagesWhitelist="") { 
         Return ""
     }
     Set ja = []
-    For i=1:1:$Length(..PackagesWhiteList,",") {
-        Do ja.%Push($Piece(..PackagesWhiteList,",",i))
+    For i=1:1:$Length(..PackagesWhitelist,",") {
+        Do ja.%Push($Piece(..PackagesWhitelist,",",i))
     } 
     return ja
 }
 
-Method MatchWhiteList(pkg) As %Boolean
+Method MatchWhitelist(pkg) As %Boolean
 {
-    For i=1:1:$Length(..PackagesWhiteList,",") {
-        Set pattern = $Piece(..PackagesWhiteList,",",i)
+    For i=1:1:$Length(..PackagesWhitelist,",") {
+        Set pattern = $Piece(..PackagesWhitelist,",",i)
         Set sql = "SELECT 1 WHERE ? %MATCHES ?"
         Set tStatement = ##class(%SQL.Statement).%New()
         Set tStatus = tStatement.%Prepare(sql)
@@ -46,7 +141,6 @@ Method MatchWhiteList(pkg) As %Boolean
             Return 0
         }
         If tResult.%Next() {
-
             Return 1
         }
     }
@@ -59,8 +153,13 @@ Method GetHttpRequest()
     Set httprequest = ##class(%Net.HttpRequest).%New()
     Set httprequest.Server = ..Host
     Set httprequest.FollowRedirect = 1
-    If (..Port'="") { Set httprequest.Port = ..Port }
-    Set httprequest.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration(..Host)
+    Set httprequest.Timeout = 10
+    If (..Port'="") { 
+        Set httprequest.Port = ..Port
+    }
+    If (..SSL) {
+        Set httprequest.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
+    }
     Return httprequest
 }
 
@@ -82,8 +181,8 @@ Method UpdatePackagesFromOneUpLink() As %Status
 {
     Set httprequest = ..GetHttpRequest()
     Set searchStr = "packages/-/all"
-    If (..PackagesWhiteList'="") {
-        Set searchTerms = ..PackagesWhiteListJSON()
+    If (..PackagesWhitelist'="") {
+        Set searchTerms = ..PackagesWhitelistJSON()
         Set searchStr = "packages/-/all?q="_$$$URLENCODE(searchTerms.%ToJSON())
     }
     Set tSC = httprequest.Get(..Location_searchStr)
@@ -128,7 +227,7 @@ ClassMethod LoadPackageFromAllUpLinks(pkg As %String = "", version As %String = 
 Method LoadPackageFromOneUpLink(pPackage As ZPM.Package, pkg As %String = "", version As %String = "") As %Status
 {
     // проверить что пакет подпадает под допустимые маски в whitelist
-    If ('..MatchWhiteList(pkg)) { 
+    If ('..MatchWhitelist(pkg)) { 
         Return $$$ERROR($$$GeneralError, "invalid package name "_pkg) 
     }
     Try {
@@ -251,7 +350,7 @@ Method AddPackage(pPackage As %DynamicObject) As %Status
     }
 
     // match package name
-    If ('..MatchWhiteList(pPackage.name)) {
+    If ('..MatchWhitelist(pPackage.name)) {
         Return 0
     }
 
@@ -297,7 +396,7 @@ Storage Default
 <Value>Active</Value>
 </Value>
 <Value name="9">
-<Value>PackagesWhiteList</Value>
+<Value>PackagesWhitelist</Value>
 </Value>
 </Data>
 <DataLocation>^ZPM.UpLinkD</DataLocation>

@@ -1,6 +1,8 @@
 Class ZPM.Utils
 {
 
+Parameter SSLCONFIGNAME = "zpmregistry";
+
 /// Reads from pStream
 /// values of elements specified in xPathArray (Array)
 /// returns values in xPathArray values
@@ -52,8 +54,37 @@ ClassMethod ReadXMLElements(pStream As %Stream.Object, xPathArray) As %Status
     }
 }
 
-ClassMethod GetSSLConfiguration(host) As %String
+ClassMethod GetSSLConfiguration() As %String
 {
+    Set host = ..#SSLCONFIGNAME
+    Return host
+    Return ""
+}
+
+ClassMethod SQLsetup() As %Status
+{
+    Set tables = $LB("ZPM.Package","ZPM.Package_dependencies","ZPM.UpLink")
+    New $NAMESPACE
+    Set ns = $NAMESPACE
+
+    Set $NAMESPACE = "%SYS"
+
+    For i=1:1:$LISTLENGTH(tables) {
+        Set sp = ##class(Security.SQLPrivileges).%New()
+        Set sp.Grantable = 0
+        Set sp.Grantee = "_PUBLIC"
+        Set sp.Grantor = "_SYSTEM"
+        Set sp.Namespace = ns
+        Set sp.Privilege = "s"
+        Set sp.SQLObject = "1,"_$LISTGET(tables,i)
+        Do sp.%Save()
+    }
+    Return $$$OK
+}
+
+ClassMethod AddSSLConfiguration() As %Status
+{
+    Set host = ..#SSLCONFIGNAME
     New $NAMESPACE
     Set $NAMESPACE = "%SYS"
     If '##class(Security.SSLConfigs).Exists(host) {
