@@ -63,9 +63,13 @@ ClassMethod UpdateUpLink(pRequest As %CSP.Stream) As %Status
         Do ##class(%Net.URLParser).Parse(pRequest.url, .tComponents)
         Set host = tComponents("host")
         If ('..HostIndexExists(host)) {
+            &sql(SELECT MAX(Position)+1 INTO :maxposition FROM ZPM.UpLink)
             // add new
             Set upLink = ..%New()
             Set upLink.Host = host
+            Set upLink.Position = maxposition
+            Set upLink.PackagesWhitelist = "*"
+            Set upLink.Active = 1
         } Else {
             If (pRequest.active=-1) {
                 // delete
@@ -82,11 +86,17 @@ ClassMethod UpdateUpLink(pRequest As %CSP.Stream) As %Status
             Set upLink.SSL = 1
         }
 
-        Set position = pRequest.position
-        Set upLink.Position = position
-        Set upLink.Active = pRequest.active
-        Set upLink.PackagesWhitelist = pRequest."package_whitelist"
-        &sql(UPDATE ZPM.UpLink SET Position = 1+Position WHERE Position >= :position)
+        If (pRequest.position'="") {
+            Set position = pRequest.position
+            Set upLink.Position = position
+            &sql(UPDATE ZPM.UpLink SET Position = 1+Position WHERE Position >= :position)
+        }
+        If (pRequest.active'="") {
+            Set upLink.Active = pRequest.active
+        }
+        If (pRequest."package_whitelist" '= "") {
+            Set upLink.PackagesWhitelist = pRequest."package_whitelist"
+        }
 
         Set tSC = upLink.%Save()
         Return:$$$ISERR(tSC) tSC
