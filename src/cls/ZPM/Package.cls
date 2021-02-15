@@ -95,7 +95,7 @@ ClassMethod ServerURL() As %String
       Set host = host_":"_port
     }    
   }
-  Set host = host_$p(%request.Application,"/",1,*-1)
+  //Set host = host_$p(%request.Application,"/",1,*-1)
   Return host
 }
 
