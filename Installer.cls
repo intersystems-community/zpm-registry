@@ -25,9 +25,8 @@ XData setup
       Grant="${RESOURCE},%SQL"
       AuthenticationMethods="96"
       Recurse="1" />
-
+      
   </Namespace>
-
   <Invoke Class="ZPM.Installer" Method="SetDispatchClass">
     <Arg Value="${CSPAPP}"/>
     <Arg Value="ZPM.Registry"/>
@@ -38,6 +37,7 @@ XData setup
   <Invoke Class="Security.SQLPrivileges" Method="Import" CheckStatus="true">
     <Arg Value="${APPPATH}SQLPriv.xml"/>
   </Invoke>
+
 </Manifest>
 }
 
