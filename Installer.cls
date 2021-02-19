@@ -25,7 +25,7 @@ XData setup
       Grant="${RESOURCE},%SQL"
       AuthenticationMethods="96"
       Recurse="1" />
-      
+
   </Namespace>
   <Invoke Class="ZPM.Installer" Method="SetDispatchClass">
     <Arg Value="${CSPAPP}"/>
