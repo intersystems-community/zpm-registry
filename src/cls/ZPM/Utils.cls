@@ -8,14 +8,14 @@ Parameter SSLCONFIGNAME = "zpmregistry";
 /// returns values in xPathArray values
 /// 
 /// example 
-///    set xPathArray("/root/element")=""
-///    set xPathArray("/root/element2")=""
+///    set xPathArray("root/element")=""
+///    set xPathArray("root/element2")=""
 ///    set tSC = ##class(ZPM.Utils).ReadXMLElements(stream, .xPathArray)
 /// returns in xPathArray
-///    xPathArray("/root/element")=""
-///    xPathArray("/root/element", "text")="value"
-///    xPathArray("/root/elemen2t")=""
-///    xPathArray("/root/element2", "text")="value2"
+///    xPathArray("root/element")=""
+///    xPathArray("root/element", "text")="value"
+///    xPathArray("root/elemen2t")=""
+///    xPathArray("root/element2", "text")="value2"
 ClassMethod ReadXMLElements(pStream As %Stream.Object, xPathArray) As %Status
 {
     Try {

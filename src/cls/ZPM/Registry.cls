@@ -194,11 +194,16 @@ ClassMethod UpdatePackage() As %Status
 
 ClassMethod GetArchive(pkg, fileName) As %Status
 {
-  SET version = $PIECE($PIECE(fileName, ".tgz", 1), pkg _ "-", 2, *)
+  Set version = $PIECE($PIECE(fileName, ".tgz", 1), pkg _ "-", 2, *)
 
-  SET package = ##class(ZPM.Package).%OpenId(pkg _ "||" _ version)
-  IF '$isobject(package) {
-    RETURN ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  Set version = ##class(ZPM.Package).VersionFind(pkg, version)
+  If (version = "") {
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  }
+
+  Set package = ##class(ZPM.Package).%OpenId(pkg _ "||" _ version)
+  If '$isobject(package) {
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
 
   Do ##class(ZPM.Analytics.Event).SaveEvent("download", ..GetRemoteAddr(), {"name":(package.name),"version":(package.version)})
@@ -206,12 +211,12 @@ ClassMethod GetArchive(pkg, fileName) As %Status
   Set ^IRIS.TempZPMRInst(token) = $Listbuild(pkg, version)
   Do %response.SetHeader("INSTALLTOKEN",token)
 
-  SET tStream = package.package
-  SET %response.NoCharSetConvert = 1
-  SET %response.CharSet = "RAW"
-  SET %response.ContentType = "application/tar+gzip"
+  Set tStream = package.package
+  Set %response.NoCharSetConvert = 1
+  Set %response.CharSet = "RAW"
+  Set %response.ContentType = "application/tar+gzip"
 
-  RETURN ..%ProcessResult($$$OK, tStream)
+  Return ..%ProcessResult($$$OK, tStream)
 }
 
 ClassMethod AllPackages() As %Status
@@ -226,7 +231,7 @@ ClassMethod AllPackages() As %Status
   Set tList = ##class(ZPM.Package).GetLatest(searchTerms, .tSC)
 
   If ($$$ISERR(tSC)) {
-    return ..ReportHttpStatusCode(..#HTTP400BADREQUEST, tSC)
+    Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST, tSC)
   }
   Return ..%ProcessResult($$$OK, tList)
 }
@@ -237,7 +242,7 @@ ClassMethod CollectAnalytics(action As %String = "") As %Status
     Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
   }
   If (action = "") {    
-    Return ..ReportHttpStatusCode(HTTP404NOTFOUND)
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
   Set token = %request.GetCgiEnv("HTTP_INSTALLTOKEN")
   If token'="", $Data(^IRIS.TempZPMRInst(token)) {
@@ -251,9 +256,7 @@ ClassMethod AllUpLinks() As %Status
 {
   Set tList = []
   Set tList = ##class(ZPM.UpLink).GetAllJSON(.tSC)
-  If ($$$ISERR(tSC)) {
-    return ..ReportHttpStatusCode(..#HTTP400BADREQUEST, tSC)
-  }
+  $$$ThrowOnError(tSC)
   Return ..%ProcessResult($$$OK, tList)
 }
 
