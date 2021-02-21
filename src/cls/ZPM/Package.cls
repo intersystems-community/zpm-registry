@@ -73,8 +73,8 @@ Method sizeGet() As %Integer
 ClassMethod GetPackageHash(pStream As %Stream.Object) As %String
 {
   If (pStream="") { Return "" }
-  If '$isobject(pStream) Set pStream = ..packageOpen(pStream)
-  set hash = $system.Encryption.SHA1HashStream(pStream)
+  If '$isobject(pStream) { Set pStream = ..packageOpen(pStream) }
+  Set hash = $system.Encryption.SHA1HashStream(pStream)
   Set str="" 
   For i=1:1:$length(hash) {
 		Set str=str_$translate($justify($zhex($ascii(hash, i)),2)," ",0)
@@ -192,6 +192,7 @@ ClassMethod DeleteExistingPackages(pkg, version) As %Status
 {
   // delete all "proxy" packages
   &sql(DELETE FROM ZPM.Package WHERE Name = :pkg AND UpLink IS NOT NULL)
+
   Do ..NameVersionDelete(pkg, version)
   Return 1
 }
@@ -402,24 +403,13 @@ ClassMethod GetModuleMeta(url As %String) As %DynamicObject
   If (ht.HttpResponse.StatusCode'=200) {
     $$$ThrowStatus($$$ERROR(5001,"Unable to download XML "_ht.Location))
   }
-  Set tmpFolder = $$$FileTempDir
 
-  Set stream=##class(%Stream.FileCharacter).%New()
-  Do stream.LinkToFile(tmpFolder_"/module.xml")
-  Set stream.TranslateTable = "UTF8"
-  Do stream.CopyFrom(ht.HttpResponse.Data)
-  Do stream.%Save()
+  Set xPathArray("Module/Version")=""
+  Set xPathArray("Module/Name")=""
+  $$$ThrowOnError(##class(ZPM.Utils).ReadXMLElements(ht.HttpResponse.Data, .xPathArray))
 
-  set binaryStream=##class(%Stream.FileBinary).%New()
-  do binaryStream.LinkToFile(tmpFolder_"/module.xml")
-
-  $$$ThrowOnError(##class(%XML.XPATH.Document).CreateFromStream(binaryStream, .xpathdoc))
-  $$$ThrowOnError(xpathdoc.EvaluateExpression("/","Export/Document/Module/Version/text()", .tResults))
-  set jo.version = tResults.GetAt(1).ValueGet()
-  $$$ThrowOnError(xpathdoc.EvaluateExpression("/","Export/Document/Module/Name/text()", .tResults))
-  set jo.name = $$$lcase(tResults.GetAt(1).ValueGet())
-
-  Do ##class(%File).RemoveDirectoryTree(tmpFolder)
+  Set jo.name = $Get(xPathArray("Module/Name","text"))
+  Set jo.version = $Get(xPathArray("Module/Version","text"))
   
   return jo
 }
@@ -438,6 +428,9 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
     If (meta.name = "") { $$$ThrowStatus($$$ERROR(5001, "Package name is empty")) }
     Set tName = meta.name
     Set id = ""
+
+    &sql(DELETE FROM ZPM.Package WHERE Name = :tName AND UpLink IS NOT NULL) // delete all "proxy" packages
+
     &sql(SELECT ID into :id FROM ZPM.Package WHERE name=:tName ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease  DESC)
     If (id'="") { 
       If (..repositoryGetStored(id)'=url) { 

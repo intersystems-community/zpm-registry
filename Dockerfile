@@ -1,4 +1,5 @@
-FROM store/intersystems/iris-community:2020.1.0.215.0
+#FROM store/intersystems/iris-community:2020.1.0.215.0
+FROM intersystemsdc/iris-community:2020.4.0.524.0-zpm
 
 USER root
 
@@ -19,3 +20,5 @@ RUN \
 
 # bringing the standard shell back
 SHELL ["/bin/bash", "-c"]
+
+
