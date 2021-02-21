@@ -428,6 +428,9 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
     If (meta.name = "") { $$$ThrowStatus($$$ERROR(5001, "Package name is empty")) }
     Set tName = meta.name
     Set id = ""
+
+    &sql(DELETE FROM ZPM.Package WHERE Name = :tName AND UpLink IS NOT NULL) // delete all "proxy" packages
+
     &sql(SELECT ID into :id FROM ZPM.Package WHERE name=:tName ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease  DESC)
     If (id'="") { 
       If (..repositoryGetStored(id)'=url) { 
