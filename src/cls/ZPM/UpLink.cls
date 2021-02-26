@@ -19,14 +19,14 @@ Property Position As %Integer;
 
 Property Active As %Boolean;
 
-Property PackagesWhitelist As %String(MAXLEN = 30000) [ InitialExpression = "*" ];
+Property PackagesAllowlist As %String(MAXLEN = 30000) [ InitialExpression = "*" ];
 
 /// returns JSON Array
 ClassMethod GetAllJSON(Output pSC As %Status) As %DynamicArray
 {
     Set pSC = $$$OK
     Set tUpLinksArr = []
-    Set tSql = "SELECT Active, Host, Location, PackagesWhitelist, Port, Position, SSL FROM ZPM.UpLink ORDER BY Position" 
+    Set tSql = "SELECT Active, Host, Location, PackagesAllowlist, Port, Position, SSL FROM ZPM.UpLink ORDER BY Position" 
     Set tStatement = ##class(%SQL.Statement).%New()
     Set tStatus = tStatement.%Prepare(tSql)
     If ($$$ISERR(tStatus)) { 
@@ -51,7 +51,7 @@ ClassMethod GetAllJSON(Output pSC As %Status) As %DynamicArray
         If (tResult.Location '= "") {
             Set url = url_tResult.Location
         }
-        Set ul = {"active":(tResult.Active), "url":(url), "package_whitelist":(tResult.PackagesWhitelist),"position":(tResult.Position)}
+        Set ul = {"active":(tResult.Active), "url":(url), "package_allowlist":(tResult.PackagesAllowlist),"position":(tResult.Position)}
         Do tUpLinksArr.%Push(ul)
     }
     Return tUpLinksArr
@@ -64,11 +64,12 @@ ClassMethod UpdateUpLink(pRequest As %CSP.Stream) As %Status
         Set host = tComponents("host")
         If ('..HostIndexExists(host)) {
             &sql(SELECT MAX(Position)+1 INTO :maxposition FROM ZPM.UpLink)
+            If ('maxposition) { Set maxposition = 1 }
             // add new
             Set upLink = ..%New()
             Set upLink.Host = host
             Set upLink.Position = maxposition
-            Set upLink.PackagesWhitelist = "*"
+            Set upLink.PackagesAllowlist = "*"
             Set upLink.Active = 1
         } Else {
             If (pRequest.active=-1) {
@@ -94,8 +95,8 @@ ClassMethod UpdateUpLink(pRequest As %CSP.Stream) As %Status
         If (pRequest.active'="") {
             Set upLink.Active = pRequest.active
         }
-        If (pRequest."package_whitelist" '= "") {
-            Set upLink.PackagesWhitelist = pRequest."package_whitelist"
+        If (pRequest."package_allowlist" '= "") {
+            Set upLink.PackagesAllowlist = pRequest."package_allowlist"
         }
 
         Set tSC = upLink.%Save()
@@ -114,22 +115,22 @@ Method DeleteCachedPackages()
     Return $$$OK
 }
 
-Method PackagesWhitelistJSON() As %DynamicArray
+Method PackagesAllowlistJSON() As %DynamicArray
 {
-    If (..PackagesWhitelist="") { 
+    If (..PackagesAllowlist="") { 
         Return ""
     }
     Set ja = []
-    For i=1:1:$Length(..PackagesWhitelist,",") {
-        Do ja.%Push($Piece(..PackagesWhitelist,",",i))
+    For i=1:1:$Length(..PackagesAllowlist,",") {
+        Do ja.%Push($Piece(..PackagesAllowlist,",",i))
     } 
     return ja
 }
 
-Method MatchWhitelist(pkg) As %Boolean
+Method MatchAllowlist(pkg) As %Boolean
 {
-    For i=1:1:$Length(..PackagesWhitelist,",") {
-        Set pattern = $Piece(..PackagesWhitelist,",",i)
+    For i=1:1:$Length(..PackagesAllowlist,",") {
+        Set pattern = $Piece(..PackagesAllowlist,",",i)
         Set sql = "SELECT 1 WHERE ? %MATCHES ?"
         Set tStatement = ##class(%SQL.Statement).%New()
         Set tStatus = tStatement.%Prepare(sql)
@@ -181,8 +182,8 @@ Method UpdatePackagesFromOneUpLink() As %Status
 {
     Set httprequest = ..GetHttpRequest()
     Set searchStr = "packages/-/all"
-    If (..PackagesWhitelist'="") {
-        Set searchTerms = ..PackagesWhitelistJSON()
+    If (..PackagesAllowlist'="") {
+        Set searchTerms = ..PackagesAllowlistJSON()
         Set searchStr = "packages/-/all?q="_$$$URLENCODE(searchTerms.%ToJSON())
     }
     Set tSC = httprequest.Get(..Location_searchStr)
@@ -226,8 +227,8 @@ ClassMethod LoadPackageFromAllUpLinks(pkg As %String = "", version As %String = 
 
 Method LoadPackageFromOneUpLink(pPackage As ZPM.Package, pkg As %String = "", version As %String = "") As %Status
 {
-    // проверить что пакет подпадает под допустимые маски в whitelist
-    If ('..MatchWhitelist(pkg)) { 
+    // проверить что пакет подпадает под допустимые маски в Allowlist
+    If ('..MatchAllowlist(pkg)) { 
         Return $$$ERROR($$$GeneralError, "invalid package name "_pkg) 
     }
     Try {
@@ -350,7 +351,7 @@ Method AddPackage(pPackage As %DynamicObject) As %Status
     }
 
     // match package name
-    If ('..MatchWhitelist(pPackage.name)) {
+    If ('..MatchAllowlist(pPackage.name)) {
         Return 0
     }
 
@@ -396,7 +397,7 @@ Storage Default
 <Value>Active</Value>
 </Value>
 <Value name="9">
-<Value>PackagesWhitelist</Value>
+<Value>PackagesAllowlist</Value>
 </Value>
 </Data>
 <DataLocation>^ZPM.UpLinkD</DataLocation>
