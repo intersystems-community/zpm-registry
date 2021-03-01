@@ -44,10 +44,6 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <!-- Analytics -->
   <Route Url="/collect/:action" Method="POST" Call="CollectAnalytics" Cors="true" />
 
-  <!-- UpLinks -->
-  <Route Url="/uplinks" Method="GET" Call="AllUpLinks" Cors="true" />
-  <Route Url="/uplinks" Method="POST" Call="UpdateUplink" Cors="true" />
-
 </Routes>
 }
 
@@ -250,26 +246,6 @@ ClassMethod CollectAnalytics(action As %String = "") As %Status
     Return ##class(ZPM.Analytics.Event).SaveEvent(action, ..GetRemoteAddr(), %request.Content)
   } 
   Return $$$ERROR(5001, "Invalid token")
-}
-
-ClassMethod AllUpLinks() As %Status
-{
-  Set tList = []
-  Set tList = ##class(ZPM.UpLink).GetAllJSON(.tSC)
-  $$$ThrowOnError(tSC)
-  Return ..%ProcessResult($$$OK, tList)
-}
-
-ClassMethod UpdateUplink() As %Status
-{
-  If ($USERNAME="UnknownUser") {
-    RETURN ..ReportHttpStatusCode(..#HTTP401UNAUTHORIZED)
-  }
-  If (%request.ContentType '= ..#CONTENTTYPEJSON) {    
-    RETURN ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
-  }
-  $$$ThrowOnError(##class(ZPM.UpLink).UpdateUpLink(%request.Content))
-  Return ..%ProcessResult($$$OK)
 }
 
 }
