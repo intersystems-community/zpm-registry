@@ -166,6 +166,7 @@ Method GetHttpRequest()
 
 ClassMethod UpdatePackagesFromAllUpLinks() As %Status
 {
+    Do ..ReadFromFile()
     Set sql = "SELECT ID FROM ZPM.UpLink WHERE Active = 1 ORDER BY Position"
     Set statement = ##class(%SQL.Statement).%New()
     Set tSC = statement.%Prepare(sql)
@@ -190,17 +191,18 @@ Method UpdatePackagesFromOneUpLink() As %Status
     If ($$$ISERR(tSC)) { Return tSC }
     Try {
         Set packages = [].%FromJSON(httprequest.HttpResponse.Data)
+        Set iter = packages.%GetIterator()
+        While iter.%GetNext(.key , .package ) {
+            Do ..AddPackage(package)
+        }
     } Catch { 
         Return 0 
-    }
-    Set iter = packages.%GetIterator()
-    While iter.%GetNext(.key , .package ) {
-        Do ..AddPackage(package)
     }
 }
 
 ClassMethod LoadPackageFromAllUpLinks(pkg As %String = "", version As %String = "") As ZPM.Package
 {
+    Do ..ReadFromFile()
     Set pPackage = ##class(ZPM.Package).%OpenId(pkg_"||"_version)
     If ('$IsObject(pPackage)) {
         Set pPackage = ##class(ZPM.Package).%New()
@@ -367,6 +369,63 @@ Method AddPackage(pPackage As %DynamicObject) As %Status
     Set tPackage.repository = pPackage.repository
     set status = tPackage.%Save()
     do $System.OBJ.DisplayError(status)
+}
+
+ClassMethod ReadFromFile() As %Status
+{
+    Set sc = $$$OK
+    Set tFilename = ##class(%SYSTEM.Util).InstallDirectory()_"zpm-registry.yaml"
+    If '##class(%File).Exists(tFilename) {
+        // if registry config file doesn't exists - remove all uplinks and related cached pakages
+        &sql(TRUNCATE TABLE ZPM.UpLink)
+        Return sc 
+    }
+    Try {
+        Set tFile = ##class(%File).%New(tFilename)
+        If ($Get(^zpmregistry("filemodified")) = tFile.DateModified) {
+            // DateTime hasn't changed - skip file 
+            Return sc
+        }
+        set obj = ##class(YAML.Utils).FileToJSON("/usr/irissys/zpm-registry.yaml", .sc)
+        $$$ThrowOnError(sc)
+        Set joUplinks = obj."uplinks"
+        &sql(TRUNCATE TABLE ZPM.UpLink)
+        Set iter = joUplinks.%GetIterator()
+        Set position = 0
+        While iter.%GetNext(.key , .joOneUplink) {
+            Set position = position + 1
+            Do ..AddUplink(key, joOneUplink.url, joOneUplink."allow_packages", position)
+        }
+        Set ^zpmregistry("filemodified") = tFile.DateModified
+    } Catch ex {
+        Set sc = ex.AsStatus()
+    }
+    Return sc
+}
+
+ClassMethod AddUplink(name, url, allowList, position) As %Status
+{
+    If (url = "") { return 0 }
+    If (allowList = "") { 
+        Set allowList = "*"
+    }
+    Set tUplink = ..%New()
+    Do ##class(%Net.URLParser).Parse(url, .tComponents)
+    Set host = tComponents("host")
+    Set tUplink.Host = host
+    Set tUplink.Position = position
+    Set tUplink.PackagesAllowlist = allowList
+    Set tUplink.Active = 1
+    Set tUplink.Name = name
+
+    If $Data(tComponents("port"), port), port'="" {
+        Set tUplink.Port = port
+    }
+    Set tUplink.Location = tComponents("path")
+    If $Get(tComponents("scheme"))="https" {
+        Set tUplink.SSL = 1
+    }
+    Return tUplink.%Save()
 }
 
 Storage Default

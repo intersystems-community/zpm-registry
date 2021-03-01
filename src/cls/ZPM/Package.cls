@@ -57,6 +57,8 @@ Property versionBuildmetadata As %String [ SqlComputeCode = {Set {*} = $Piece({v
 
 Property UpLink As ZPM.UpLink(%JSONINCLUDE = "NONE");
 
+ForeignKey UpLinkFK(UpLink) References ZPM.UpLink() [ OnDelete = cascade ];
+
 Index NameUpLink On (name, UpLink);
 
 Method nameSet(value As %String) As %Status
