@@ -296,21 +296,56 @@ ClassMethod ReadUplinksFromFile() As %Status
             // DateTime hasn't changed - skip file 
             Return sc
         }
-        set obj = ##class(YAML.Utils).FileToJSON("/usr/irissys/zpm-registry.yaml", .sc)
+        set obj = ##class(YAML.Utils).FileToJSON(tFilename, .sc)
+
         $$$ThrowOnError(sc)
-        Set joUplinks = obj."uplinks"
-        &sql(TRUNCATE TABLE ZPM.UpLink)
-        Set iter = joUplinks.%GetIterator()
-        Set position = 0
-        While iter.%GetNext(.key , .joOneUplink) {
-            Set position = position + 1
-            Do ..AddUplink(key, joOneUplink.url, joOneUplink."allow_packages", position)
+        Set filemodificationTS = tFile.DateModified
+        If (..IsDefaultConfig(obj)) {
+            // namespace doesn't specified
+            Do ..SaveUplinks(obj."uplinks", filemodificationTS)
+        } Else{
+            //  namespace specified - search for current ns settings
+            Set iter = obj.%GetIterator()
+            Set ns = $$$lcase($NAMESPACE)
+            While iter.%GetNext(.key , .uplinks) {
+                If (ns = $$$lcase(key)) {
+                    Do ..SaveUplinks(uplinks."uplinks", filemodificationTS)
+                }
+            }
         }
-        Set ^zpmregistry("filemodified") = tFile.DateModified
     } Catch ex {
         Set sc = ex.AsStatus()
     }
     Return sc
+}
+
+ClassMethod SaveUplinks(joUplinks As %DynamicObject, filemodificationTS As %String) As %Status
+{
+    &sql(TRUNCATE TABLE ZPM.UpLink) 
+    Set iter = joUplinks.%GetIterator()
+    Set position = 0
+    While iter.%GetNext(.key , .joOneUplink) {
+        Set position = position + 1
+        Do ..AddUplink(key, joOneUplink.url, joOneUplink."allow_packages", position)
+    }
+    Set ^zpmregistry("filemodified") = filemodificationTS
+}
+
+ClassMethod IsDefaultConfig(obj As %DynamicObject) As %Boolean
+{
+    Try {
+        If (obj.%GetTypeOf("uplinks")="object") {
+            Set iter = obj.uplinks.%GetIterator()
+            If iter.%GetNext(.key , .joOneUplink) {
+                If (joOneUplink.%IsDefined("url")) {
+                    return 1
+                }
+            }
+        }
+    } Catch ex {
+        return 0
+    }
+    return 0
 }
 
 ClassMethod AddUplink(name, url, allowList, position) As %Status
