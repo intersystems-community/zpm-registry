@@ -1,4 +1,4 @@
 uplinks:
   pm:
     url: https://pm.community.intersystems.com/
-    allow_packages: a*,?u* 
+    allow_packages: zpm* 
