@@ -521,11 +521,16 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Stat
     }
     Set searchCondition = searchCondition_ " ) "
   }
-  Set sql = "SELECT name, repository, description "_
-            "FROM ZPM.Package p1 "_
-            "WHERE "_ searchCondition _
-            "GROUP BY name "_
-            "ORDER BY name"
+  set sql = "SELECT name, repository, version, description" _ 
+            "  FROM ZPM.Package p1 "_
+            "  WHERE "_ 
+            "    version= ( "_
+            "      SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name "_
+            "      ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) "_
+            "    AND "_searchCondition_" "_
+            "  GROUP BY name ORDER BY name"
+  w sql
+
   Set tStatement = ##class(%SQL.Statement).%New()
   Set tStatus = tStatement.%Prepare(sql)
   If ($$$ISERR(tStatus)) { 
@@ -541,9 +546,9 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Stat
   While tResult.%Next() {
     Set tPkgInfo = {
       "name": (tResult.name),
-      "description": (tResult.Description),
+      "description": (tResult.description),
       "repository": (tResult.repository),
-      "versions": [(..GetTopVersion(tResult.name))]
+      "versions": [(tResult.version)]
     }
     do tList.%Push(tPkgInfo)
   }
