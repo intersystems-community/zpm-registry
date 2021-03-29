@@ -529,7 +529,6 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Stat
             "      ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) "_
             "    AND "_searchCondition_" "_
             "  GROUP BY name ORDER BY name"
-  w sql
 
   Set tStatement = ##class(%SQL.Statement).%New()
   Set tStatus = tStatement.%Prepare(sql)
