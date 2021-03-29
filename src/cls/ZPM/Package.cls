@@ -488,15 +488,6 @@ ClassMethod LoadFromGitHub(Url = "")
   do ##class(%File).RemoveDirectoryTree(outputFolder)
 }
 
-ClassMethod GetTopVersion(pkg As %String) As %String
-{
-  Set version = ""
-  &sql(SELECT TOP 1 version INTO :version FROM ZPM.Package 
-        WHERE name = :pkg
-        ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) 
-  Return version
-}
-
 /// returns latest versions of packages 
 ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Status) As %DynamicArray
 {
@@ -521,13 +512,10 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Stat
     }
     Set searchCondition = searchCondition_ " ) "
   }
-  set sql = "SELECT name, repository, version, description" _ 
+  set sql = "SELECT name, repository, description, "_
+              " ( SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) version " _ 
             "  FROM ZPM.Package p1 "_
-            "  WHERE "_ 
-            "    version= ( "_
-            "      SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name "_
-            "      ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) "_
-            "    AND "_searchCondition_" "_
+            "  WHERE "_searchCondition_" "_
             "  GROUP BY name ORDER BY name"
 
   Set tStatement = ##class(%SQL.Statement).%New()
