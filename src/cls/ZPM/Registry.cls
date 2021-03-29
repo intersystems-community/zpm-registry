@@ -95,7 +95,7 @@ ClassMethod Package(pkg As %String = "", version As %String = "") As %Status
   Set pkg = $$$lcase(pkg)
 
   If (version="") {
-    $$$ThrowOnError(##class(ZPM.UpLink).FindPackagInAllUpLinks(pkg))
+    $$$ThrowOnError(##class(ZPM.UpLink).FindPackageInAllUpLinks(pkg))
   }
 
   Set version = ##class(ZPM.Package).VersionFind(pkg, version)

@@ -129,7 +129,7 @@ Method FindPackageInOneUpLink(pkg As %String)
     }
 }
 
-ClassMethod FindPackagInAllUpLinks(pkg As %String) As %Status
+ClassMethod FindPackageInAllUpLinks(pkg As %String) As %Status
 {
     Do ..ReadUplinksFromFile()
     Set sql = "SELECT ID FROM ZPM.UpLink WHERE Active = 1 ORDER BY Position"
