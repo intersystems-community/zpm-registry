@@ -93,6 +93,11 @@ ClassMethod Reset() As %Status
 ClassMethod Package(pkg As %String = "", version As %String = "") As %Status
 {
   Set pkg = $$$lcase(pkg)
+
+  If (version="") {
+    $$$ThrowOnError(##class(ZPM.UpLink).FindPackagInAllUpLinks(pkg))
+  }
+
   Set version = ##class(ZPM.Package).VersionFind(pkg, version)
   If (version = "") {
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)

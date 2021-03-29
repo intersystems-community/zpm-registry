@@ -101,9 +101,47 @@ Method UpdatePackagesFromOneUpLink() As %Status
         While iter.%GetNext(.key , .package ) {
             Do ..AddPackage(package)
         }
-    } Catch { 
-        Return 0 
+    } Catch ex {
+        Do ex.Log() 
+        Return ex.AsStatus()
     }
+}
+
+Method FindPackageInOneUpLink(pkg As %String)
+{
+    If ('..MatchAllowlist(pkg)) { 
+        Return $$$ERROR($$$GeneralError, "invalid package name "_pkg) 
+    }
+    Set httprequest = ..GetHttpRequest()
+    Set searchStr = "packages/"_pkg
+    Set tSC = httprequest.Get(..Location_searchStr)
+    If ($$$ISERR(tSC)) { Return tSC }
+    Try {
+        Set package = {}.%FromJSON(httprequest.HttpResponse.Data)
+        Set iter = package.versions.%GetIterator()
+        While iter.%GetNext(.key , .version ) {
+            set tPackage = {"name":(package.name), "description":"", "repository":(package.repository), "versions":[(version)]}
+            Do ..AddPackage(tPackage)
+        }
+    } Catch ex {
+        Do ex.Log()
+        Return ex.AsStatus()
+    }
+}
+
+ClassMethod FindPackagInAllUpLinks(pkg As %String) As %Status
+{
+    Do ..ReadUplinksFromFile()
+    Set sql = "SELECT ID FROM ZPM.UpLink WHERE Active = 1 ORDER BY Position"
+    Set statement = ##class(%SQL.Statement).%New()
+    Set tSC = statement.%Prepare(sql)
+    If $$$ISERR(tSC) { Return tSC }
+    Set resultset=statement.%Execute()
+    While resultset.%Next() {
+        Set uplink = ..%OpenId(resultset.ID)
+        Do uplink.FindPackageInOneUpLink(pkg)
+    } 
+    Return $$$OK
 }
 
 ClassMethod LoadPackageFromAllUpLinks(pkg As %String = "", version As %String = "") As ZPM.Package
@@ -145,6 +183,7 @@ Method LoadPackageFromOneUpLink(pPackage As ZPM.Package, pkg As %String = "", ve
         $$$ThrowOnError(..LoadPackage(pPackage, pkg, version))
         $$$ThrowOnError(..LoadInstaller(pPackage, pkg, version))
     } Catch ex {
+        do ex.Log()
         Return ex.AsStatus()
     }
     Return $$$OK
@@ -314,6 +353,7 @@ ClassMethod ReadUplinksFromFile() As %Status
             }
         }
     } Catch ex {
+        do ex.Log()
         Set sc = ex.AsStatus()
     }
     Return sc
@@ -366,7 +406,11 @@ ClassMethod AddUplink(name, url, allowList, position) As %Status
     If $Data(tComponents("port"), port), port'="" {
         Set tUplink.Port = port
     }
-    Set tUplink.Location = tComponents("path")
+    Set tPath = tComponents("path")
+    If ($EXTRACT(tPath,*) = "/") {
+        Set tPath = $EXTRACT(tPath,1,*-1)
+    }
+    Set tUplink.Location = tPath
     If $Get(tComponents("scheme"))="https" {
         Set tUplink.SSL = 1
     }
