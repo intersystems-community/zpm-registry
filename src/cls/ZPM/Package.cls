@@ -428,7 +428,7 @@ ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
     Set meta = ..GetModuleMeta(url)
     If (meta.version = "") { $$$ThrowStatus($$$ERROR(5001, "Invalid package version")) }
     If (meta.name = "") { $$$ThrowStatus($$$ERROR(5001, "Package name is empty")) }
-    Set tName = meta.name
+    Set tName = $$$lcase(meta.name)
     Set id = ""
 
     &sql(DELETE FROM ZPM.Package WHERE Name = :tName AND UpLink IS NOT NULL) // delete all "proxy" packages
