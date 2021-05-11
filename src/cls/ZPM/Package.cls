@@ -512,11 +512,10 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Stat
     }
     Set searchCondition = searchCondition_ " ) "
   }
-  set sql = "SELECT name, repository, description, "_
-              " ( SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) version " _ 
+  set sql = "SELECT name, repository, description, version "_
             "  FROM ZPM.Package p1 "_
-            "  WHERE "_searchCondition_" "_
-            "  GROUP BY name ORDER BY name"
+            "  WHERE "_searchCondition_" "_ 
+            " AND p1.version = ( SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) "
 
   Set tStatement = ##class(%SQL.Statement).%New()
   Set tStatus = tStatement.%Prepare(sql)
