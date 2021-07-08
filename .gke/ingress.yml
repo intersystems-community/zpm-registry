@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: zpm-registry
+  namespace: zpm-registry
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    certmanager.k8s.io/cluster-issuer: lets-encrypt-production
+spec:
+  rules:
+  - host: pm.community.intersystems.com
+    http:
+      paths:
+      - backend:
+          serviceName: zpm-registry
+          servicePort: 52773
+        path: /(csp)
+  tls:
+  - hosts:
+    - pm.community.intersystems.com
+    secretName: zpm-registry
