@@ -346,6 +346,9 @@ ClassMethod GetDefaultBranch(path As %String) As %String
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = "api.github.com"
   Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
+  Set settings = ##class(ZPM.Settings).%Get()
+  Set ht.Username = settings.BasicAuthUsername
+  Set ht.Password = settings.BasicAuthAccessToken
   Set ht.Https = 1
   Set ht.Location = "/repos"_path 
   $$$ThrowOnError(ht.Get())
@@ -369,6 +372,9 @@ ClassMethod DownloadPackageFromGitHub(url As %String, Output branch As %String) 
   If $data(tComponents("port"), port), port'="" {
     Set ht.Port = port
   }
+  Set settings = ##class(ZPM.Settings).%Get()
+  Set ht.Username = settings.BasicAuthUsername
+  Set ht.Password = settings.BasicAuthAccessToken
   Set ht.Location = tComponents("path")_"archive/"_branch_".tar.gz"
   $$$ThrowOnError(ht.Get())
   If (ht.HttpResponse.StatusCode'=200) {
@@ -400,8 +406,12 @@ ClassMethod GetModuleMeta(url As %String) As %DynamicObject
   If $data(tComponents("port"), port), port'="" {
     Set ht.Port = port
   }
-  Set ht.Location = tComponents("path")_"master/module.xml"
-  $$$ThrowOnError(ht.Get())
+  Set location = tComponents("path")_..GetDefaultBranch(url)_"/module.xml"
+  Set settings = ##class(ZPM.Settings).%Get()
+  If (settings.BasicAuthAccessToken '= "") {
+	  Do ht.SetHeader("Authorization","token "_settings.BasicAuthAccessToken)
+  }
+  $$$ThrowOnError(ht.Get(location))
   If (ht.HttpResponse.StatusCode'=200) {
     $$$ThrowStatus($$$ERROR(5001,"Unable to download XML "_ht.Location))
   }
