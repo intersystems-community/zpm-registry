@@ -406,7 +406,7 @@ ClassMethod GetModuleMeta(url As %String) As %DynamicObject
   If $data(tComponents("port"), port), port'="" {
     Set ht.Port = port
   }
-  Set location = tComponents("path")_..GetDefaultBranch(url)_"/module.xml"
+  Set location = tComponents("path")_..GetDefaultBranch(tComponents("path"))_"/module.xml"
   Set settings = ##class(ZPM.Settings).%Get()
   If (settings.BasicAuthAccessToken '= "") {
 	  Do ht.SetHeader("Authorization","token "_settings.BasicAuthAccessToken)
