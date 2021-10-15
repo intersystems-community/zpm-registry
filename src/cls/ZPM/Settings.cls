@@ -17,7 +17,7 @@ Storage Default
 <Value>BasicAuthUsername</Value>
 </Value>
 <Value name="3">
-<Value>BasicAuthPassword</Value>
+<Value>BasicAuthAccessToken</Value>
 </Value>
 </Data>
 <DataLocation>^ZPM.SettingsD</DataLocation>
