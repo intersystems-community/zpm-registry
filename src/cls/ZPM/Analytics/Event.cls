@@ -1,6 +1,8 @@
 Class ZPM.Analytics.Event Extends (%Persistent, %JSON.Adaptor)
 {
 
+Parameter DSTIME = "AUTO";
+
 /// Server date and time, saving the data 
 Property TS As %PosixTime(%JSONINCLUDE = "none") [ SqlComputeCode = {set {*}=##class(%Library.PosixTime).CurrentTimeStamp()}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 

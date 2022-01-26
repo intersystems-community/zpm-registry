@@ -4,11 +4,18 @@
     <Module>
       <Name>zpm-registry</Name>
       <Description>Registry server for ZPM</Description>
-      <Version>1.0.9</Version>
+      <Version>1.1.4</Version>
       <Packaging>module</Packaging>
+      <Dependencies>
+        <ModuleReference>
+          <Name>yaml-utils</Name>
+          <Version>0.1.*</Version>
+        </ModuleReference>
+      </Dependencies>
       <SourcesRoot>src</SourcesRoot>
       <Resource Name="ZPM.PKG"/>
-
+      <Invoke Class="ZPM.Utils" Method="SQLsetup"></Invoke>
+      <Invoke Class="ZPM.Utils" Method="AddSSLConfiguration"></Invoke>
       <CSPApplication 
         Url="/registry"
         Path="/src"
@@ -16,7 +23,7 @@
         Directory="{$cspdir}/registry" 
         MatchRoles=":{$dbrole}"
         PasswordAuthEnabled="1"
-        UnauthenticatedEnabled="0"
+        UnauthenticatedEnabled="1"
         DispatchClass="ZPM.Registry"
         ServeFiles="1"
         CookiePath="/registry"

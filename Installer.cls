@@ -27,16 +27,29 @@ XData setup
       Recurse="1" />
 
   </Namespace>
-
   <Invoke Class="ZPM.Installer" Method="SetDispatchClass">
     <Arg Value="${CSPAPP}"/>
     <Arg Value="ZPM.Registry"/>
   </Invoke>
 
+  <Invoke Class="ZPM.Installer" Method="AddSSLConfiguration"></Invoke>
+
   <Invoke Class="Security.SQLPrivileges" Method="Import" CheckStatus="true">
     <Arg Value="${APPPATH}SQLPriv.xml"/>
   </Invoke>
+
 </Manifest>
+}
+
+ClassMethod AddSSLConfiguration()
+{
+    Set host = "zpmregistry"
+    New $NAMESPACE
+    Set $NAMESPACE = "%SYS"
+    If '##class(Security.SSLConfigs).Exists(host) {
+        Do ##class(Security.SSLConfigs).Create(host)
+    }
+    Return host
 }
 
 ClassMethod setup(ByRef pVars, pLogLevel As %Integer = 3, pInstaller As %Installer.Installer, pLogger As %Installer.AbstractLogger) As %Status [ CodeMode = objectgenerator, Internal ]
