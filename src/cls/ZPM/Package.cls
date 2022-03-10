@@ -104,6 +104,7 @@ ClassMethod ServerURL() As %String
 Method urlGet() As %String
 {
   SET host = ..ServerURL()
+  SET:host'="https://pm.intersystems.com" host = host_$p(%request.Application,"/",1,*-1)
   SET name = $ZCONVERT(..name, "O", "URL")
   SET version = $ZCONVERT(..version, "O", "URL")
   RETURN host _ "/download/" _ name _ "/-/" _ name _ "-" _ version _ ".tgz"
