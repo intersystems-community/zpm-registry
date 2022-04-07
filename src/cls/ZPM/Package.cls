@@ -97,7 +97,10 @@ ClassMethod ServerURL() As %String
       Set host = host_":"_port
     }    
   }
-  //Set host = host_$p(%request.Application,"/",1,*-1)
+  #; If not behind the proxy where it have to be hidden redirect from / to /registry
+  if %request.GetCgiEnv("HTTP_X_FORWARDED_HOST")="" {
+    Set host = host _ $p(%request.Application, "/" ,1,*-1)
+  }
   Return host
 }
 
