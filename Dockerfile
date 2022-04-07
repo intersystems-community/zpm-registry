@@ -1,19 +1,19 @@
 FROM containers.intersystems.com/intersystems/iris-community:2022.1.0.164.0
 
+WORKDIR /opt/registry
+
 USER root
 
-WORKDIR /opt/zpm
-RUN chown ${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} .
+RUN chown irisowner:irisowner .
 
 USER irisowner
 
-COPY  Installer.cls SQLPriv.xml ./
-COPY  src src
-COPY zpm-registry.yaml /usr/irissys/
-RUN VERSION=$(grep -oP '(?<=<Version>).*?(?=</Version>)' module.xml) && \
-    sed -i "s/Parameter VERSION.*/Parameter VERSION = \"${VERSION}\";/" ./src/CLS/ZPM/Registry.cls
+COPY --chown=irisowner:irisowner . .
 
-RUN                                                                 \
+RUN  \
+  VERSION=$(sed -n 's|.*<Version>\(.*\)</Version>.*|\1|p' module.xml | head -1) && \
+  sed -i 's|^Parameter VERSION .*$|Parameter VERSION = "'"$VERSION"'";|g' \
+    ./src/cls/ZPM/Registry.cls                                   && \
   iris start ${ISC_PACKAGE_INSTANCENAME}                         && \
   /bin/echo -e ""                                                   \
     " zn \"%SYS\""                                                  \
