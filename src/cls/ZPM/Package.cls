@@ -55,6 +55,8 @@ Property versionPrerelease As %String [ SqlComputeCode = {Set {*} = $Piece($Piec
 
 Property versionBuildmetadata As %String [ SqlComputeCode = {Set {*} = $Piece({version},"+",2)}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
+Property publishTS As %PosixTime [ SqlComputeCode = {Set {*} = ##class(%Library.PosixTime).CurrentUTCTimeStamp()}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+
 Property UpLink As ZPM.UpLink(%JSONINCLUDE = "NONE");
 
 ForeignKey UpLinkFK(UpLink) References ZPM.UpLink() [ OnDelete = cascade ];
@@ -620,6 +622,9 @@ Storage Default
 </Value>
 <Value name="19">
 <Value>UpLink</Value>
+</Value>
+<Value name="20">
+<Value>publishTS</Value>
 </Value>
 </Data>
 <Data name="dependencies">
