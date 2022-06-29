@@ -7,11 +7,15 @@
     "username": "_SYSTEM",
     "password": "SYS",
     "ns": "REGISTRY",
-    "port": 52773,
-    "addCategory": true,
+    "host": "localhost",
+    "port": 52774,
     "links": {
       "Swagger spec": "http://${host}:${port}/registry/_spec",
       "All Packages": "http://${host}:${port}/registry/packages/-/all"
     }
+  },
+  "objectscript.export": {
+    "folder": "src",
+    "addCategory": true
   }
 }

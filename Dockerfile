@@ -1,28 +1,29 @@
-#FROM store/intersystems/iris-community:2020.1.0.215.0
-FROM intersystemsdc/iris-community:2020.4.0.524.0-zpm
+FROM containers.intersystems.com/intersystems/iris-community:2022.2.0.270.0
+
+WORKDIR /opt/registry
 
 USER root
 
-COPY zpm-registry.yaml /usr/irissys/
-
-WORKDIR /opt/zpm
-RUN chown ${ISC_PACKAGE_MGRUSER}:${ISC_PACKAGE_IRISGROUP} .
+RUN chown irisowner:irisowner .
 
 USER irisowner
 
-COPY  Installer.cls .
-COPY  SQLPriv.xml .
-COPY  src src
-COPY irissession.sh /
-SHELL ["/irissession.sh"]
+COPY --chown=irisowner:irisowner . .
 
-RUN \
-  do $SYSTEM.OBJ.Load("Installer.cls", "ck") \
-  set sc = ##class(ZPM.Installer).setup()    \
-  zn "registry"                              \
-  zpm "install yaml-utils"
-
-# bringing the standard shell back
-SHELL ["/bin/bash", "-c"]
-
-
+RUN  \
+  VERSION=$(sed -n 's|.*<Version>\(.*\)</Version>.*|\1|p' module.xml | head -1) && \
+  sed -i 's|^Parameter VERSION .*$|Parameter VERSION = "'"$VERSION"'";|g' \
+    ./src/cls/ZPM/Registry.cls                                   && \
+  iris start ${ISC_PACKAGE_INSTANCENAME}                         && \
+  /bin/echo -e ""                                                   \
+    " zn \"%SYS\""                                                  \
+    " do ##class(%SYSTEM.Process).CurrentDirectory(\"$PWD\")"       \
+    " do ##class(%SYSTEM.OBJ).Load(\"Installer.cls\", \"ck\")"      \
+    " set sc = ##class(ZPM.Installer).setup() "                     \
+    " if '\$Get(sc) { do ##class(%SYSTEM.Process).Terminate(, 1) }" \
+    " halt"                                                         \
+  | iris session ${ISC_PACKAGE_INSTANCENAME} -U %SYS             && \
+  tail /usr/irissys/mgr/messages.log && \
+  iris stop ${ISC_PACKAGE_INSTANCENAME} quietly                  && \
+  rm -rf /usr/irissys/mgr/IRIS.WIJ                               && \
+  rm -rf /usr/irissys/mgr/journal/*
