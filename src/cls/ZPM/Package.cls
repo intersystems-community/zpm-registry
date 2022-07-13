@@ -1,7 +1,9 @@
-Class ZPM.Package Extends (%Persistent, ZPM.JSON.Adaptor)
+Class ZPM.Package Extends (%Persistent, %JSON.Adaptor)
 {
 
 Parameter EXTENTQUERYSPEC = "name,version";
+
+Parameter %JSONIGNOREINVALIDFIELD As BOOLEAN = 1;
 
 Property name As %String(MAXLEN = 50) [ Required ];
 
@@ -29,7 +31,7 @@ Index Repository On repository;
 
 Property dependencies As array Of %String;
 
-Property package As %Stream.GlobalBinary(%JSONINCLUDE = "INPUTONLY");
+Property package As %Stream.GlobalBinary(%JSONINCLUDE = "NONE");
 
 Property size As %Integer(%JSONINCLUDE = "OUTPUTONLY");
 
@@ -72,6 +74,17 @@ Method nameSet(value As %String) As %Status
 Method sizeGet() As %Integer
 {
   return ..package.Size
+}
+
+Method packageFromBase64(base64 As %Stream.DynamicBinary) As %Status
+{
+  set sc = $$$OK
+  Set ..package = ##class(%Stream.GlobalBinary).%New()
+  while 'base64.AtEnd {
+    Set tSC = ..package.Write($system.Encryption.Base64Decode(base64.Read(43540, .sc))) 
+    Set:$$$ISERR(tSC) sc = $$$ADDSC(sc,tSC)
+  }
+  Quit sc
 }
 
 ClassMethod GetPackageHash(pStream As %Stream.Object) As %String

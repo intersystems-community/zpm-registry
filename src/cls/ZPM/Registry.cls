@@ -186,6 +186,7 @@ ClassMethod PublishPackage() As %Status
   
   set package = ##class(ZPM.Package).%New() 
   $$$ThrowOnError(package.%JSONImport(%request.Content))
+  $$$ThrowOnError(package.packageFromBase64(%request.Content.%Get("package",,"stream")))
   $$$ThrowOnError(package.UpdateDescriptionFromManifest())
   do ##class(ZPM.Package).DeleteExistingPackages(package.name, package.version)
   $$$ThrowOnError(package.%Save())
