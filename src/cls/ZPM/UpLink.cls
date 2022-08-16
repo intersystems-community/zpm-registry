@@ -65,6 +65,7 @@ Method GetHttpRequest()
         Set httprequest.Port = ..Port
     }
     If (..SSL) {
+        Set httprequest.Https = 1
         Set httprequest.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
     }
     Return httprequest
