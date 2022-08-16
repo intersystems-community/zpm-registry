@@ -238,7 +238,9 @@ ClassMethod AllPackages() As %Status
   } Catch ex {}
   $$$ThrowOnError(##class(ZPM.UpLink).UpdatePackagesFromAllUpLinks())
    
-  Set tList = ##class(ZPM.Package).GetLatest(searchTerms, .tSC)
+  Set manifest = %request.Get("manifest","")
+  Set allVersions = %request.Get("allVersions","")
+  Set tList = ##class(ZPM.Package).GetLatest(searchTerms, manifest, allVersions, .tSC) 
 
   If ($$$ISERR(tSC)) {
     Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST, tSC)
