@@ -112,9 +112,15 @@ ClassMethod ServerURL() As %String
       Set host = host_":"_port
     }    
   }
-  #; If not behind the proxy where it have to be hidden redirect from / to /registry
-  if %request.GetCgiEnv("HTTP_X_FORWARDED_HOST")="" {
-    Set host = host _ $p(%request.Application, "/" ,1,*-1)
+  If (%request.GetCgiEnv("HTTP_X_ORIGINAL_URI")'="") {
+    Set path = $REPLACE(%request.URL, %request.Application,"",1,1)
+    Set urlpart = $EXTRACT(%request.GetCgiEnv("HTTP_X_ORIGINAL_URI"),1,$FIND(%request.GetCgiEnv("HTTP_X_ORIGINAL_URI"), path) - $Length(path)-1)
+    Set host = host _ $p(urlpart, "/" ,1,*-1)
+  } Else {
+    #; If not behind the proxy where it have to be hidden redirect from / to /registry
+    If %request.GetCgiEnv("HTTP_X_FORWARDED_HOST")="" {
+      Set host = host _ $p(%request.Application, "/" ,1,*-1)
+    }
   }
   Return host
 }
@@ -507,7 +513,7 @@ ClassMethod LoadFromGitHub(Url = "")
 }
 
 /// returns latest versions of packages 
-ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Status) As %DynamicArray
+ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "", allVersions As %String = "", Output pStatus As %Status) As %DynamicArray
 {
   Set pStatus = 1
   If ( '($CLASSNAME(searchTerms)="%Library.DynamicArray" ) || (searchTerms.%Size()=0) ) {
@@ -530,8 +536,9 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Stat
     }
     Set searchCondition = searchCondition_ " ) "
   }
-  set sql = "SELECT name, repository, description, version "_
+  set sql = "SELECT p1.name, p1.repository, p1.description, p1.version, ul.Host "_
             "  FROM ZPM.Package p1 "_
+            "  LEFT JOIN ZPM.UpLink ul ON ul.ID = p1.UpLink " _
             "  WHERE "_searchCondition_" "_ 
             " AND p1.version = ( SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) "
 
@@ -552,8 +559,31 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", Output pStatus As %Stat
       "name": (tResult.name),
       "description": (tResult.description),
       "repository": (tResult.repository),
+      "origin": (tResult.Host),
       "versions": [(tResult.version)]
     }
+
+    If (manifest = "1") {
+      Set tPkgInfo.manifest = ""
+      Set package = ##class(ZPM.Package).%OpenId(tResult.name_"||"_tResult.version)
+      If ($IsObject(package.manifest)) {
+        while ('package.manifest.AtEnd) {
+          Set tPkgInfo.manifest = tPkgInfo.manifest _ package.manifest.Read(100)
+        }
+      }
+    }
+
+    If (allVersions = "1") {
+      Set tPkgInfo.allVersions = []
+      Set sql2 = "SELECT version "_
+            " FROM ZPM.Package WHERE name = ? "_
+            " ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC"
+      Set versionsResult = ##class(%SQL.Statement).%ExecDirect(, sql2, tResult.name)
+      While versionsResult.%Next() {
+        Do tPkgInfo.allVersions.%Push(versionsResult.version)
+      }
+    }
+
     do tList.%Push(tPkgInfo)
   }
   Return tList
