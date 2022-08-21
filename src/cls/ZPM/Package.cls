@@ -525,9 +525,9 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
     Set params = 0
     While iter.%GetNext(.key , .value ) {
       if (key=0) {
-        Set searchCondition = searchCondition _ " ((name %MATCHES ?) OR (description %MATCHES ?) OR (keywords %MATCHES ?)) "
+        Set searchCondition = searchCondition _ " ((p1.name %MATCHES ?) OR (p1.description %MATCHES ?) OR (p1.keywords %MATCHES ?)) "
       } else {
-        Set searchCondition = searchCondition _ " OR ((name %MATCHES ?) OR (description %MATCHES ?) OR (keywords %MATCHES ?))"
+        Set searchCondition = searchCondition _ " OR ((p1.name %MATCHES ?) OR (p1.description %MATCHES ?) OR (p1.keywords %MATCHES ?))"
       }
       Set params(params+1) = value
       Set params(params+2) = value
