@@ -10,6 +10,14 @@
   </SQLPrivileges>
   <SQLPrivileges>
     <Namespace>REGISTRY</Namespace>
+    <SQLObject>1,ZPM.DeployedPackage</SQLObject>
+    <Privilege>s</Privilege>
+    <Grantee>_PUBLIC</Grantee>
+    <Grantor>_SYSTEM</Grantor>
+    <Grantable>0</Grantable>
+  </SQLPrivileges>
+  <SQLPrivileges>
+    <Namespace>REGISTRY</Namespace>
     <SQLObject>1,ZPM.Package_dependencies</SQLObject>
     <Privilege>s</Privilege>
     <Grantee>_PUBLIC</Grantee>

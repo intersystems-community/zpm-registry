@@ -13,7 +13,6 @@
       "Swagger spec": "http://${host}:${port}/registry/_spec",
       "All Packages": "http://${host}:${port}/registry/packages/-/all"
     },
-    "server": "registry"
   },
   "objectscript.export": {
     "folder": "src",

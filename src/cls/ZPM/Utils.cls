@@ -3,6 +3,33 @@ Class ZPM.Utils
 
 Parameter SSLCONFIGNAME = "zpmregistry";
 
+ClassMethod ServerURL() As %String
+{
+  Set host = ""
+  If '$ISOBJECT($Get(%request)) {
+    Quit ""
+  }
+  Set tSecure = %request.Secure 
+  Set host = %request.GetCgiEnv("HTTP_X_FORWARDED_HOST", %request.GetCgiEnv("SERVER_NAME"))
+  Set proto = %request.GetCgiEnv("HTTP_X_FORWARDED_PROTO", $SELECT(tSecure: "https", 1: "http"))
+  Set port = %request.GetCgiEnv("HTTP_X_FORWARDED_PORT", %request.GetCgiEnv("SERVER_PORT"))
+  Set host = proto _ "://" _ host
+  If '$LISTFIND($LISTBUILD(80, 443), port) {
+    Set host = host_":"_port
+  }
+  If (%request.GetCgiEnv("HTTP_X_ORIGINAL_URI")'="") {
+    Set path = $REPLACE(%request.URL, %request.Application,"",1,1)
+    Set urlpart = $EXTRACT(%request.GetCgiEnv("HTTP_X_ORIGINAL_URI"),1,$FIND(%request.GetCgiEnv("HTTP_X_ORIGINAL_URI"), path) - $Length(path)-1)
+    Set host = host _ $p(urlpart, "/" ,1,*-1)
+  } Else {
+    #; If not behind the proxy where it have to be hidden redirect from / to /registry
+    If %request.GetCgiEnv("HTTP_X_FORWARDED_HOST")="" {
+      Set host = host _ $p(%request.Application, "/" ,1,*-1)
+    }
+  }
+  Return host
+}
+
 /// Reads from pStream
 /// values of elements specified in xPathArray (Array)
 /// returns values in xPathArray values
