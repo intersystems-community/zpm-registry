@@ -39,7 +39,7 @@ Property manifest As %Stream.GlobalCharacter(%JSONINCLUDE = "INPUTONLY");
 
 Property installer As %Stream.GlobalCharacter(%JSONINCLUDE = "INPUTONLY");
 
-Property hash As %String(%JSONINCLUDE = "OUTPUTONLY") [ SqlComputeCode = { set {*} = ..GetPackageHash({package})}, SqlComputed, SqlComputeOnChange = package ];
+Property hash As %String(%JSONINCLUDE = "OUTPUTONLY") [ SqlComputeCode = { Set {*} = ..GetPackageHash({package})}, SqlComputed, SqlComputeOnChange = %%UPDATE ];
 
 Property url As %String(%JSONINCLUDE = "OUTPUTONLY", MAXLEN = 200) [ Transient ];
 
@@ -47,15 +47,17 @@ Property installerUrl As %String(%JSONFIELDNAME = "installer", %JSONINCLUDE = "O
 
 Property versions As list Of %String(%JSONINCLUDE = "OUTPUTONLY", MAXLEN = 200) [ Transient ];
 
-Property versionMajor As %Integer [ SqlComputeCode = {Set {*} = +$Piece({version},".",1)}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+Property platformVersions As list Of %String(%JSONFIELDNAME = "platform_versions", %JSONINCLUDE = "OUTPUTONLY", MAXLEN = 10) [ Transient ];
 
-Property versionMinor As %Integer [ SqlComputeCode = {Set {*} = +$Piece({version},".",2)}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+Property versionMajor As %Integer(%JSONINCLUDE = "NONE") [ SqlComputeCode = {Set {*} = +$Piece({version},".",1)}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
-Property versionPatch As %Integer [ SqlComputeCode = {Set {*} = +$Piece($Piece($Piece({version},".",3),"-"),"+")}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+Property versionMinor As %Integer(%JSONINCLUDE = "NONE") [ SqlComputeCode = {Set {*} = +$Piece({version},".",2)}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
-Property versionPrerelease As %String [ SqlComputeCode = {Set {*} = $Piece($Piece($Piece({version},".",3,*),"-",2,*),"+")}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+Property versionPatch As %Integer(%JSONINCLUDE = "NONE") [ SqlComputeCode = {Set {*} = +$Piece($Piece($Piece({version},".",3),"-"),"+")}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
-Property versionBuildmetadata As %String [ SqlComputeCode = {Set {*} = $Piece({version},"+",2)}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+Property versionPrerelease As %String(%JSONINCLUDE = "NONE") [ SqlComputeCode = {Set {*} = $Piece($Piece($Piece({version},".",3,*),"-",2,*),"+")}, SqlComputed, SqlComputeOnChange = %%INSERT ];
+
+Property versionBuildmetadata As %String(%JSONINCLUDE = "NONE") [ SqlComputeCode = {Set {*} = $Piece({version},"+",2)}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
 Property publishTS As %PosixTime [ SqlComputeCode = {Set {*} = ##class(%Library.PosixTime).CurrentUTCTimeStamp()}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
@@ -65,106 +67,93 @@ ForeignKey UpLinkFK(UpLink) References ZPM.UpLink() [ OnDelete = cascade ];
 
 Index NameUpLink On (name, UpLink);
 
+Property deployed As %Boolean;
+
 Method nameSet(value As %String) As %Status
 {
-  set i%name = $$$lcase(value)
+  Set i%name = $$$lcase(value)
   Quit $$$OK
 }
 
 Method sizeGet() As %Integer
 {
-  return ..package.Size
+  Return:'..package.Size ""
+  Return ..package.Size
 }
 
 Method packageFromBase64(base64 As %Stream.DynamicBinary) As %Status
 {
-  set sc = $$$OK
-  Set ..package = ##class(%Stream.GlobalBinary).%New()
-  while 'base64.AtEnd {
-    Set tSC = ..package.Write($system.Encryption.Base64Decode(base64.Read(43540, .sc))) 
+  Set sc = $$$OK
+  Do ..package.Clear()
+  Do base64.Rewind()
+  While 'base64.AtEnd {
+    Set tSC = ..package.Write($System.Encryption.Base64Decode(base64.Read(43540, .sc))) 
     Set:$$$ISERR(tSC) sc = $$$ADDSC(sc,tSC)
   }
   Quit sc
 }
 
+Method filepathGet() As %String [ CodeMode = expression ]
+{
+..name _ "/-"
+}
+
+Method filenameGet() As %String [ CodeMode = expression ]
+{
+..name _ "-" _ ..version
+}
+
 ClassMethod GetPackageHash(pStream As %Stream.Object) As %String
 {
   If (pStream="") { Return "" }
-  If '$isobject(pStream) { Set pStream = ..packageOpen(pStream) }
-  Set hash = $system.Encryption.SHA1HashStream(pStream)
+  If '$IsObject(pStream) { Set pStream = ..packageOpen(pStream) }
+  Set hash = $System.Encryption.SHA1HashStream(pStream)
   Set str="" 
-  For i=1:1:$length(hash) {
-		Set str=str_$translate($justify($zhex($ascii(hash, i)),2)," ",0)
+  For i=1:1:$Length(hash) {
+		Set str=str_$Translate($Justify($ZHex($Ascii(hash, i)),2)," ",0)
 	}
-  RETURN $$$lcase(str)
-}
-
-ClassMethod ServerURL() As %String
-{
-  Set host = ""
-  If $ISOBJECT($Get(%request)) {
-    Set tSecure = %request.Secure 
-    Set host = %request.GetCgiEnv("HTTP_X_FORWARDED_HOST", %request.GetCgiEnv("SERVER_NAME"))
-    Set proto = %request.GetCgiEnv("HTTP_X_FORWARDED_PROTO", $SELECT(tSecure: "https", 1: "http"))
-    Set port = %request.GetCgiEnv("HTTP_X_FORWARDED_PORT", %request.GetCgiEnv("SERVER_PORT"))
-    Set host = proto _ "://" _ host
-    If '$LISTFIND($LISTBUILD(80, 443), port) {
-      Set host = host_":"_port
-    }    
-  }
-  If (%request.GetCgiEnv("HTTP_X_ORIGINAL_URI")'="") {
-    Set path = $REPLACE(%request.URL, %request.Application,"",1,1)
-    Set urlpart = $EXTRACT(%request.GetCgiEnv("HTTP_X_ORIGINAL_URI"),1,$FIND(%request.GetCgiEnv("HTTP_X_ORIGINAL_URI"), path) - $Length(path)-1)
-    Set host = host _ $p(urlpart, "/" ,1,*-1)
-  } Else {
-    #; If not behind the proxy where it have to be hidden redirect from / to /registry
-    If %request.GetCgiEnv("HTTP_X_FORWARDED_HOST")="" {
-      Set host = host _ $p(%request.Application, "/" ,1,*-1)
-    }
-  }
-  Return host
+  Return $$$lcase(str)
 }
 
 Method urlGet() As %String
 {
-  SET host = ..ServerURL()
-  SET name = $ZCONVERT(..name, "O", "URL")
-  SET version = $ZCONVERT(..version, "O", "URL")
-  RETURN host _ "/download/" _ name _ "/-/" _ name _ "-" _ version _ ".tgz"
+  Quit:'..size ""
+  Set host = ##class(ZPM.Utils).ServerURL()
+  Return host _ "/download/" _ $ZConvert(..filepathGet() _ "/" _ ..filenameGet() _ ".tgz", "O", "URL")
 }
 
 Method installerUrlGet() As %String
 {
   If ('..installer.Size) {
-    RETURN ""
+    Return ""
   }
-  SET host = ..ServerURL()
-  SET name = $ZCONVERT(..name, "O", "URL")
-  SET version = $ZCONVERT(..version, "O", "URL")
-  RETURN host _ "/packages/" _ name _ "/" _ version _ "/installer"
+  Set host =  ##class(ZPM.Utils).ServerURL()
+  Set name = $ZConvert(..name, "O", "URL")
+  Set version = $ZConvert(..version, "O", "URL")
+  Return host _ "/packages/" _ name _ "/" _ version _ "/installer"
 }
 
 Method versionsGet() As %ListOfDataTypes
 {
-  set tList = ##class(%ListOfDataTypes).%New()
+  Set tList = ##class(%ListOfDataTypes).%New()
 
-  set name = ..name
+  Set name = ..name
   &sql(SELECT %DLIST(version) INTO :versions FROM Package WHERE name = :name)
-  if (SQLCODE=0) {
-    set ptr = 0
-    while $LISTNEXT(versions, ptr, version) {
-      continue:version=""
-      set list(version) = ""
+  If (SQLCODE=0) {
+    Set ptr = 0
+    While $ListNext(versions, ptr, version) {
+      Continue:version=""
+      Set list(version) = ""
     }
   }
 
-  set version = ""
-  for {
-    set version = $ORDER(list(version), 1)
-    QUIT:version=""
-    do tList.Insert(version)
+  Set version = ""
+  For {
+    Set version = $Order(list(version), 1)
+    Quit:version=""
+    Do tList.Insert(version)
   }
-  return tList
+  Return tList
 }
 
 ClassMethod VersionFind(pkg As %String = "", version As %String = "") As %String
@@ -214,6 +203,30 @@ ClassMethod VersionFind(pkg As %String = "", version As %String = "") As %String
   }
 }
 
+Method platformVersionsGet() As %ListOfDataTypes
+{
+  Set tList = ##class(%ListOfDataTypes).%New()
+
+  Set name = ..name
+  Set version = ..version
+  &sql(SELECT %DLIST(platformVersion) INTO :versions FROM DeployedPackage WHERE name = :name AND version = :version)
+  If (SQLCODE=0) {
+    Set ptr = 0
+    While $ListNext(versions, ptr, version) {
+      Continue:version=""
+      Set list(version) = ""
+    }
+  }
+
+  Set version = ""
+  For {
+    Set version = $Order(list(version), 1)
+    Quit:version=""
+    Do tList.Insert(version)
+  }
+  Return tList
+}
+
 ClassMethod DeleteExistingPackages(pkg, version) As %Status
 {
   // delete all "proxy" packages
@@ -225,17 +238,17 @@ ClassMethod DeleteExistingPackages(pkg, version) As %Status
 
 ClassMethod versionValidate(pkg As %String = "", version As %String = "") As %String
 {
-  if (pkg="") {
+  If (pkg="") {
     Return ""
   }
-  if (version = "") || (version = "latest") || (version = "*") {
+  If (version = "") || (version = "latest") || (version = "*") {
     &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package WHERE Name = :pkg 
           ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC
     )
     If SQLCODE'=0 Return ""
     Return version
   }
-  if ..%ExistsId(pkg _ "||" _ version) {
+  If ..%ExistsId(pkg _ "||" _ version) {
     Return version
   }
   Return ""
@@ -243,20 +256,20 @@ ClassMethod versionValidate(pkg As %String = "", version As %String = "") As %St
 
 ClassMethod Populate(Path As %String, kill = 0)
 {
-  IF '##class(%File).DirectoryExists(Path) {
-    RETURN
+  If '##class(%File).DirectoryExists(Path) {
+    Return
   }
   
-  DO:kill ..%KillExtent()
+  Do:kill ..%KillExtent()
   
-  SET rs = ##class(%File).FileSetFunc(Path)
-  WHILE rs.%Next() {
-    SET name = rs.name
-    CONTINUE:rs.Type'="D"
+  Set rs = ##class(%File).FileSetFunc(Path)
+  While rs.%Next() {
+    Set name = rs.name
+    Continue:rs.Type'="D"
     
-    SET tSC = ..LoadPackage(name)
-    IF $$$ISERR(tSC) {
-      DO $System.OBJ.DisplayError(tSC)
+    Set tSC = ..LoadPackage(name)
+    If $$$ISERR(tSC) {
+      Do $System.OBJ.DisplayError(tSC)
     }
   }
 }
@@ -264,101 +277,95 @@ ClassMethod Populate(Path As %String, kill = 0)
 Method UpdateDescriptionFromManifest() As %Status
 {
   Try {
-    //save xml to file
-    Set tFileName = $$$FileTempDir_"/manifest.xml"
-    Set stream=##class(%Stream.FileCharacter).%New()
-    $$$ThrowOnError(stream.LinkToFile(tFileName))
-    $$$ThrowOnError(stream.CopyFrom(..manifest))
-    $$$ThrowOnError(stream.%Save())
-    Kill stream
-    $$$ThrowOnError(##class(%XML.XPATH.Document).CreateFromFile(tFileName, .tDocument))
+    Quit:'..manifest.Size
+    $$$ThrowOnError(##class(%XML.XPATH.Document).CreateFromStream(..manifest, .tDocument))
     $$$ThrowOnError(tDocument.EvaluateExpression("/Module/Description", "text()", .tRes))
     If (tRes.Count()>0) {
       Set ..description = tRes.GetAt(1).Value
     }
   } Catch ex {
     Do ex.Log()
-    return ex.AsStatus()
+    Return ex.AsStatus()
   }
-  return $$$OK
+  Return $$$OK
 }
 
 ClassMethod LoadPackage(Path As %String, repository As %String = "", silent As %Boolean = 0) As %Status
 {
-  SET tStream = ##class(%Stream.FileCharacter).%New()
-  SET moduleFile = ##class(%File).NormalizeFilename("module.xml", Path)
-  IF '##class(%File).Exists(moduleFile) {
-    SET Path = ##class(%File).NormalizeDirectory("latest", Path)
-    SET moduleFile = ##class(%File).NormalizeFilename("module.xml", Path)
+  Set tStream = ##class(%Stream.FileCharacter).%New()
+  Set moduleFile = ##class(%File).NormalizeFilename("module.xml", Path)
+  If '##class(%File).Exists(moduleFile) {
+    Set Path = ##class(%File).NormalizeDirectory("latest", Path)
+    Set moduleFile = ##class(%File).NormalizeFilename("module.xml", Path)
   }
   If ('silent) {
-    WRITE !!,"Path: ",Path
-    WRITE !!,"ModuleFile: ",moduleFile
+    Write !!,"Path: ",Path
+    Write !!,"ModuleFile: ",moduleFile
   }
-  SET tSC = ##class(%XML.XPATH.Document).CreateFromFile(moduleFile, .tDocument)
-  IF $$$ISERR(tSC) Return tSC
+  Set tSC = ##class(%XML.XPATH.Document).CreateFromFile(moduleFile, .tDocument)
+  If $$$ISERR(tSC) Return tSC
 
-  SET tSC=tDocument.EvaluateExpression("/Export/Document/Module/Name", "text()", .tRes)
-  IF $$$ISERR(tSC) Return tSC
+  Set tSC=tDocument.EvaluateExpression("/Export/Document/Module/Name", "text()", .tRes)
+  If $$$ISERR(tSC) Return tSC
   If '$IsObject(tRes.GetAt(1)) {
     Return $$$ERROR($$$GeneralError, "Name required")
   }
-  SET name = tRes.GetAt(1).Value
-  SET name = $$$lcase(name)
+  Set name = tRes.GetAt(1).Value
+  Set name = $$$lcase(name)
   If ('silent) {
-    WRITE !,"Name: ", name
+    Write !,"Name: ", name
   }
 
-  SET tSC=tDocument.EvaluateExpression("/Export/Document/Module/Version", "text()", .tRes)
-  IF $$$ISERR(tSC) Return tSC
+  Set tSC=tDocument.EvaluateExpression("/Export/Document/Module/Version", "text()", .tRes)
+  If $$$ISERR(tSC) Return tSC
   If '$IsObject(tRes.GetAt(1)) {
     Return $$$ERROR($$$GeneralError, "Version required")
   }
-  SET version = tRes.GetAt(1).Value
+  Set version = tRes.GetAt(1).Value
   If ('silent) {
-    WRITE !,"Version: ", version
+    Write !,"Version: ", version
   }
 
   Set description = ""
   Set tSC=tDocument.EvaluateExpression("/Export/Document/Module/Description", "text()", .tRes)
-  IF $$$ISERR(tSC) Return tSC
+  If $$$ISERR(tSC) Return tSC
   If $IsObject(tRes.GetAt(1)) {
     Set description = tRes.GetAt(1).Value
   }
 
-  SET archive = ##class(%Stream.FileBinary).%New()
-  SET archiveFileName = ##class(%File).TempFilename("tgz")
-  SET archive.Filename = archiveFileName
+  Set archive = ##class(%Stream.FileBinary).%New()
+  Set archiveFileName = ##class(%File).TempFilename("tgz")
+  Set archive.Filename = archiveFileName
 
-  SET command = "cd " _ Path _ " && tar -zcvf " _ archiveFileName _ " . "
+  Set command = "cd " _ Path _ " && tar -zcvf " _ archiveFileName _ " . "
 
-  SET args = 0
-  SET res = $zf(-100, "", "tar", "--exclude=.git", "-zcvf", archiveFileName, "-C",  Path, ".")
+  Set args = 0
+  Set res = $Zf(-100, "", "tar", "--exclude=.git", "-zcvf", archiveFileName, "-C",  Path, ".")
   If ('silent) {
-    WRITE "ArchiveSize: " _ archive.Size
+    Write "ArchiveSize: " _ archive.Size
   }
 
-  do ..DeleteExistingPackages(name,version)
-  SET package = ..%New()
-  SET package.name = name
+  Do ..DeleteExistingPackages(name,version)
+  Set package = ..%New()
+  Set package.name = name
   Set package.description = description
   Set package.repository = repository
-  SET package.version = version
-  SET package.package = archive
-  set module = ##class(%Stream.FileCharacter).%New()
-  set module.Filename = moduleFile
+  Set package.version = version
+  Set package.package = archive
+  Set module = ##class(%Stream.FileCharacter).%New()
+  Set module.Filename = moduleFile
   Set package.manifest = module
-  SET hash = $$$lcase(##class(%File).SHA1Hash(archiveFileName, 1))  
-  SET package.hash = hash
+  Set hash = $$$lcase(##class(%File).SHA1Hash(archiveFileName, 1))  
+  Set package.hash = hash
   If ('silent) {
-    WRITE !,"ArchiveHash: " _ hash
+    Write !,"ArchiveHash: " _ hash
   }
-  RETURN package.%Save()
+  Return package.%Save()
 }
 
 ClassMethod GetPackageNameFromRepositoryURL(url As %String) As %String
 {
-  Return $PIECE(url, "/", *-1)
+  Return $Piece(url, "/", *-1)
 }
 
 ClassMethod GetDefaultBranch(path As %String) As %String
@@ -377,7 +384,7 @@ ClassMethod GetDefaultBranch(path As %String) As %String
     Set jo = {}.%FromJSON(ht.HttpResponse.Data)
     Set branch = jo."default_branch" 
   }
-  return branch
+  Return branch
 }
 
 ClassMethod DownloadPackageFromGitHub(url As %String, Output branch As %String) As %String
@@ -386,11 +393,11 @@ ClassMethod DownloadPackageFromGitHub(url As %String, Output branch As %String) 
   Set branch = ..GetDefaultBranch(tComponents("path"))
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = tComponents("host")
-  If $get(tComponents("scheme"))="https" {
+  If $Get(tComponents("scheme"))="https" {
     Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
     Set ht.Https = 1
   }
-  If $data(tComponents("port"), port), port'="" {
+  If $Data(tComponents("port"), port), port'="" {
     Set ht.Port = port
   }
   Set ht.Location = tComponents("path")_"archive/"_branch_".tar.gz"
@@ -406,22 +413,22 @@ ClassMethod DownloadPackageFromGitHub(url As %String, Output branch As %String) 
   Do fs.CopyFromAndSave(ht.HttpResponse.Data)
 
   Set outputFolder = $$$FileTempDir
-  Set res = $zf(-100, "", "tar", "-zxvf", archiveFileName, "-C", outputFolder)
+  Set res = $Zf(-100, "", "tar", "-zxvf", archiveFileName, "-C", outputFolder)
 
   Return outputFolder
 }
 
 ClassMethod GetModuleMeta(url As %String) As %DynamicObject
 {
-  set jo = {"name":"", "version":""}
+  Set jo = {"name":"", "version":""}
   Do ##class(%Net.URLParser).Parse(url, .tComponents)
   Set ht = ##class(%Net.HttpRequest).%New()
   Set ht.Server = "raw.githubusercontent.com"
-  If $get(tComponents("scheme"))="https" {
+  If $Get(tComponents("scheme"))="https" {
     Set ht.SSLConfiguration = ##class(ZPM.Utils).GetSSLConfiguration()
     Set ht.Https = 1
   }
-  If $data(tComponents("port"), port), port'="" {
+  If $Data(tComponents("port"), port), port'="" {
     Set ht.Port = port
   }
   Set ht.Location = tComponents("path")_"master/module.xml"
@@ -437,7 +444,7 @@ ClassMethod GetModuleMeta(url As %String) As %DynamicObject
   Set jo.name = $Get(xPathArray("Module/Name","text"))
   Set jo.version = $Get(xPathArray("Module/Version","text"))
   
-  return jo
+  Return jo
 }
 
 ClassMethod UpdatePackage(jo As %DynamicObject) As %Status
@@ -493,10 +500,10 @@ ClassMethod Publish(url As %String, name As %String) As %Status
 
 ClassMethod LoadFromGitHub(Url = "")
 {
-  IF Url="" {
-    RETURN ""
+  If Url="" {
+    Return ""
   }
-  If $e(Url, *)'="/" { 
+  If $Extract(Url, *)'="/" { 
     Set Url = Url _ "/"
   }
   Set name = ..GetPackageNameFromRepositoryURL(Url)
@@ -505,18 +512,18 @@ ClassMethod LoadFromGitHub(Url = "")
   Set packageFolder = ##class(%File).NormalizeDirectory(name_"-"_branch, outputFolder)
   Set tSC = ..LoadPackage(packageFolder, Url)
   If $$$ISERR(tSC) { 
-    Do $system.OBJ.DisplayError() 
-  } else { 
+    Do $System.OBJ.DisplayError() 
+  } Else { 
     Write !,"Success" 
   }
-  do ##class(%File).RemoveDirectoryTree(outputFolder)
+  Do ##class(%File).RemoveDirectoryTree(outputFolder)
 }
 
 /// returns latest versions of packages 
 ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "", allVersions As %String = "", Output pStatus As %Status) As %DynamicArray
 {
   Set pStatus = 1
-  If ( '($CLASSNAME(searchTerms)="%Library.DynamicArray" ) || (searchTerms.%Size()=0) ) {
+  If ( '($ClassName(searchTerms)="%Library.DynamicArray" ) || (searchTerms.%Size()=0) ) {
     // empty query
     Set searchCondition = " ( 1=1 ) "
   } Else {
@@ -524,9 +531,9 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
     Set iter = searchTerms.%GetIterator()
     Set params = 0
     While iter.%GetNext(.key , .value ) {
-      if (key=0) {
+      If (key=0) {
         Set searchCondition = searchCondition _ " ((p1.name %MATCHES ?) OR (p1.description %MATCHES ?) OR (p1.keywords %MATCHES ?)) "
-      } else {
+      } Else {
         Set searchCondition = searchCondition _ " OR ((p1.name %MATCHES ?) OR (p1.description %MATCHES ?) OR (p1.keywords %MATCHES ?))"
       }
       Set params(params+1) = value
@@ -536,7 +543,7 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
     }
     Set searchCondition = searchCondition_ " ) "
   }
-  set sql = "SELECT p1.name, p1.repository, p1.description, p1.version, ul.Host "_
+  Set sql = "SELECT p1.name, p1.repository, p1.description, p1.version, ul.Host "_
             "  FROM ZPM.Package p1 "_
             "  LEFT JOIN ZPM.UpLink ul ON ul.ID = p1.UpLink " _
             "  WHERE "_searchCondition_" "_ 
@@ -567,7 +574,7 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
       Set tPkgInfo.manifest = ""
       Set package = ##class(ZPM.Package).%OpenId(tResult.name_"||"_tResult.version)
       If ($IsObject(package.manifest)) {
-        while ('package.manifest.AtEnd) {
+        While ('package.manifest.AtEnd) {
           Set tPkgInfo.manifest = tPkgInfo.manifest _ package.manifest.Read(100)
         }
       }
@@ -584,7 +591,7 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
       }
     }
 
-    do tList.%Push(tPkgInfo)
+    Do tList.%Push(tPkgInfo)
   }
   Return tList
 }
@@ -668,6 +675,12 @@ Storage Default
 </Value>
 <Value name="20">
 <Value>publishTS</Value>
+</Value>
+<Value name="21">
+<Value>deployed</Value>
+</Value>
+<Value name="22">
+<Value>platformVersion</Value>
 </Value>
 </Data>
 <Data name="dependencies">
