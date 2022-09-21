@@ -5,7 +5,7 @@
       <Name>zpm-registry</Name>
       <ExternalName>ZPM Registry</ExternalName>
       <Description>Registry server for ZPM</Description>
-      <Version>1.1.13</Version>
+      <Version>1.1.14</Version>
       <Packaging>module</Packaging>
       <Dependencies>
         <ModuleReference>
