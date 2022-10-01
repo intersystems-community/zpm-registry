@@ -370,6 +370,7 @@ ClassMethod SaveUplinks(joUplinks As %DynamicObject, filemodificationTS As %Stri
         Do ..AddUplink(key, joOneUplink.url, joOneUplink."allow_packages", position)
     }
     Set ^zpmregistry("filemodified") = filemodificationTS
+    quit $$$OK
 }
 
 ClassMethod IsDefaultConfig(obj As %DynamicObject) As %Boolean
