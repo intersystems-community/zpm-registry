@@ -46,7 +46,7 @@ ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObj
         Set event = ..%New()
         Set event.Action = action
         Set event.IP = ip
-        DO event.%JSONImport(json)
+        Do event.%JSONImport(json)
         $$$ThrowOnError(event.%Save())
         If ##class(%Dictionary.CompiledClass).%ExistsId("ZPM.Analytics.IP") {
             Do ##class(ZPM.Analytics.IP).SetGeo(event, ip)
@@ -54,7 +54,7 @@ ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObj
         $$$ThrowOnError(event.%Save())
         Return $$$OK
     } Catch ex {
-        do ex.Log()
+        Do ex.Log()
         Return ex.AsStatus()
     }
 }
