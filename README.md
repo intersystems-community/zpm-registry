@@ -1,4 +1,6 @@
 # intersystems zpm-registry
+[![Quality Gate Status](https://community.objectscriptquality.com/api/project_badges/measure?project=intersystems_iris_community%2Fzpm-registry&metric=alert_status)](https://community.objectscriptquality.com/dashboard?id=intersystems_iris_community%2Fzpm-registry) 
+
 ZPM Registry is a a server part of ObjectScript Package Manager.
 
 ZPM Registry hosts ZPM packages and publishes API to publish, list and deploy packages.

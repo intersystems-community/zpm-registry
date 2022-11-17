@@ -1,4 +1,4 @@
-FROM containers.intersystems.com/intersystems/iris-community:2022.2.0.311.0
+FROM intersystems/iris-community:2022.2.0.345.0
 
 WORKDIR /opt/registry
 
