@@ -9,36 +9,44 @@ Parameter HandleCorsRequest = 1;
 
 Parameter PAGESIZE As INTEGER = 20;
 
+Parameter HTTP451LEGAL = "451 Unavailable For Legal Reasons";
+
 ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue As %Boolean) As %Status
 {
-  SET tSC = $$$OK
-  TRY {
-    
+  Set tSC = $$$OK
+  Try {
     // Set the return type according to the Accept type in the request. Default is application/json.
-    IF ('..AcceptsContentType(..#CONTENTTYPEJSON)) {
-      SET tSC = ..ReportHttpStatusCode(..#HTTP406NOTACCEPTABLE), pContinue=0
-      QUIT 
-        } ELSE {   
+    If ('..AcceptsContentType(..#CONTENTTYPEJSON)) {
+      Set tSC = ..ReportHttpStatusCode(..#HTTP406NOTACCEPTABLE)
+      Set pContinue = 0
+      Quit 
+    } Else {   
       // This always returns json
-      SET %response.ContentType=..#CONTENTTYPEJSON
-        }
-        
-        
-        // read request object into %DynamicObject format
-    IF ((pMethod'="POST") && (pMethod'="PUT")) || (%request.Content="") {
-      SET %request.Content = {}
-    } ELSE {
-      IF ($IsObject(%request.Content))&&('%request.Content.Size) {
-        SET %request.Content = {}
-      } ELSE {
-        SET %request.Content = ##class(%Library.DynamicObject).%FromJSON(%request.Content)
-      }
+      Set %response.ContentType=..#CONTENTTYPEJSON
     }
+    
+    If (##class(%Dictionary.CompiledClass).%ExistsId("ZPM.Analytics.IP")) {
+      If ('##class(ZPM.Analytics.IP).ValidateIP(..GetRemoteAddr())) {
+        Set tSC = ..ReportHttpStatusCode(..#HTTP451LEGAL)
+        Set pContinue = 0
+        Quit
+      }
+    }    
         
-  } CATCH ex {
-    SET tSC = ex.AsStatus()
+    // read request object into %DynamicObject format
+    If ((pMethod'="POST") && (pMethod'="PUT")) || (%request.Content="") {
+      Set %request.Content = {}
+    } Else {
+      If ($IsObject(%request.Content))&&('%request.Content.Size) {
+        Set %request.Content = {}
+      } Else {
+        Set %request.Content = ##class(%Library.DynamicObject).%FromJSON(%request.Content)
+      }
+    } 
+  } Catch ex {
+    Set tSC = ex.AsStatus()
   }
-  QUIT ##class(%iKnow.REST.Base).%ErrorHandler(tSC, .pContinue)
+  Quit ##class(%iKnow.REST.Base).%ErrorHandler(tSC, .pContinue)
 }
 
 ClassMethod %ProcessResult(pStatus As %Status = {$$$OK}, pResult As %DynamicObject = "") As %Status [ Internal ]
