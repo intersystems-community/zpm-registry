@@ -13,7 +13,7 @@ Property version As %String [ Required ];
 
 Index NameVersion On (name, version) [ IdKey, Unique ];
 
-Property owner As %String;
+Property owner As %String(%JSONINCLUDE = "NONE");
 
 Index Owner On owner;
 
@@ -203,6 +203,28 @@ ClassMethod VersionFind(pkg As %String = "", version As %String = "") As %String
   }
 }
 
+Trigger DeletePackage [ Event = DELETE, Foreach = row/object ]
+{
+  // delete DeployedPackage
+  New id,package,name,version
+  Set id = {ID}
+  Set package = ##class(Package).%OpenId(id)
+  Set name = package.name
+  Set version = package.version
+  &sql(DELETE FROM ZPM.DeployedPackage WHERE name = :name AND version = :version)
+}
+
+ClassMethod IsDeleted(name, version) As %Boolean
+{
+  Set count = 0
+  &sql(SELECT COUNT(1) INTO :count FROM DeletedPackage WHERE name = :name AND version = :version)
+  If (count = 0) {
+    Return 0
+  } Else {
+    Return 1
+  }
+}
+
 Method platformVersionsGet() As %ListOfDataTypes
 {
   Set tList = ##class(%ListOfDataTypes).%New()
@@ -227,12 +249,22 @@ Method platformVersionsGet() As %ListOfDataTypes
   Return tList
 }
 
-ClassMethod DeleteExistingPackages(pkg, version) As %Status
+ClassMethod DeleteExistingPackages(pkg As %String, version As %String, markDeleted As %Boolean = 0) As %Status
 {
   // delete all "proxy" packages
   &sql(DELETE FROM ZPM.Package WHERE Name = :pkg AND UpLink IS NOT NULL)
+  Set tSC = ..NameVersionDelete(pkg, version)
+  Return:$$$ISERR(tSC) tSC
 
-  Do ..NameVersionDelete(pkg, version)
+  If (markDeleted) {
+    Set count = 0
+    &sql(SELECT COUNT(1) INTO :count FROM ZPM.Package WHERE Name = :pkg)
+    If (count = 0) {
+      &sql(DELETE FROM ZPM.DeletedPackage WHERE name = :pkg)
+    } Else {
+      &sql(INSERT INTO ZPM.DeletedPackage(name, version) VALUES (:pkg, :version))
+    }
+  }
   Return 1
 }
 

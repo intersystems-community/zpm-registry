@@ -173,37 +173,52 @@ ClassMethod PackageInstaller(pkg As %String = "", version As %String = "") As %S
 /// Unpublish (delete) directly published package
 ClassMethod UnPublishPackage(pkg As %String = "", version As %String = "") As %Status
 {
-  If ($Username="UnknownUser") {
-    Return ..ReportHttpStatusCode(..#HTTP401UNAUTHORIZED)
+  Set tSC = $$$OK
+  Set tSC = ##class(ZPM.Owner).IsAuth()
+  If ($$$ISERR(tSC)) {
+    Return ..ReportHttpStatusCode(..#HTTP401UNAUTHORIZED, tSC)
   }
-  Set sc = $$$OK
   Set pkg = $$$lcase(pkg)
   Set pPackage = ##class(ZPM.Package).NameVersionOpen(pkg, version)
   If ('$IsObject(pPackage)) {
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
+  Set tSC = ##class(ZPM.Owner).IsOwner(pkg)
+  If ($$$ISERR(tSC)) {
+    Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, tSC)
+  }
   If (pPackage.UpLink'="") {
     // only directly published package could be deleted
     Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
   }
-  Return pPackage.%DeleteId(pPackage.%Id())
+  Return ##class(ZPM.Package).DeleteExistingPackages(pkg, version, 1)
 }
 
 ClassMethod PublishPackage() As %Status
 {
-  try {
-    If ($Username="UnknownUser") {
-      Return ..ReportHttpStatusCode(..#HTTP401UNAUTHORIZED)
-    }
-    If (%request.ContentType '= ..#CONTENTTYPEJSON) {
-      Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
-    }
-    
+  Try {
+
     Set name = %request.Content.%Get("name")
     Set version = %request.Content.%Get("version")
     Set deployed = %request.Content.%Get("deployed")
     Set platformVersion = %request.Content.%Get("platform_version")
 
+    Set tSC = ##class(ZPM.Owner).IsAuth()
+    If ($$$ISERR(tSC)) {
+      Return ..ReportHttpStatusCode(..#HTTP401UNAUTHORIZED, tSC)
+    }
+    Set tSC = ##class(ZPM.Owner).IsOwner(name)
+    If ($$$ISERR(tSC)) {
+      Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, tSC)
+    }
+    If (##class(ZPM.Package).IsDeleted(name, version)) {
+      Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, $$$ERROR(5001,"This version was deleted, change version number"))
+    }
+
+    If (%request.ContentType '= ..#CONTENTTYPEJSON) {
+      Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
+    }
+    
     If ##class(ZPM.Package).NameVersionExists(name, version, .id) {
       Set package = ##class(ZPM.Package).%OpenId(id) 
     }
@@ -230,6 +245,7 @@ ClassMethod PublishPackage() As %Status
       $$$ThrowOnError(package.packageFromBase64(%request.Content.%Get("package",,"stream")))
     }
     $$$ThrowOnError(package.%Save())
+    Do ##class(ZPM.Owner).SaveOwner(package.name, package.version)
     Return ..Package(package.name, package.version)
   } catch ex {
     Do ex.Log()
