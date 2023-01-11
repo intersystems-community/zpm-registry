@@ -23,8 +23,9 @@ ClassMethod IsOwner(packageName As %String) As %Status
 ClassMethod SaveOwner(packageName, packageVersion) As %Status
 {
     Set owner = $Username
-    &sql(UPDATE ZPM.Package SET owner = :owner WHERE name = :packageName AND version = :packageVersion)
-    Return $$$OK
+    Set package = ##class(ZPM.Package).NameVersionOpen(packageName, packageVersion)
+    Set package.owner = owner
+    Return package.%Save()
 }
 
 }

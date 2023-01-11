@@ -212,7 +212,7 @@ ClassMethod PublishPackage() As %Status
       Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, tSC)
     }
     If (##class(ZPM.Package).IsDeleted(name, version)) {
-      Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, $$$ERROR(5001,"This version was deleted, change version number"))
+      Return ..ReportHttpStatusCode(..#HTTP500INTERNALSERVERERROR, $$$ERROR(5001,"This version was deleted, change version number"))
     }
 
     If (%request.ContentType '= ..#CONTENTTYPEJSON) {
