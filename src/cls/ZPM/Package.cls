@@ -552,16 +552,18 @@ ClassMethod LoadFromGitHub(Url = "")
 }
 
 /// returns latest versions of packages 
-ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "", allVersions As %String = "", Output pStatus As %Status) As %DynamicArray
+ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "", allVersions As %String = "", owner As %String = "", Output pStatus As %Status) As %DynamicArray
 {
   Set pStatus = 1
+  Set params = 1
+  Set params(params) = owner
+
   If ( '($ClassName(searchTerms)="%Library.DynamicArray" ) || (searchTerms.%Size()=0) ) {
     // empty query
     Set searchCondition = " ( 1=1 ) "
   } Else {
     Set searchCondition = " ( "
     Set iter = searchTerms.%GetIterator()
-    Set params = 0
     While iter.%GetNext(.key , .value ) {
       If (key=0) {
         Set searchCondition = searchCondition _ " ((p1.name %MATCHES ?) OR (p1.description %MATCHES ?) OR (p1.keywords %MATCHES ?)) "
@@ -575,11 +577,12 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
     }
     Set searchCondition = searchCondition_ " ) "
   }
-  Set sql = "SELECT p1.name, p1.repository, p1.description, p1.version, ul.Host "_
+
+  Set sql = "SELECT p1.name, p1.repository, p1.description, p1.version, ul.Host, IFNULL( (SELECT TOP 1 1 FROM ZPM.Package p3 WHERE p1.name=p3.name AND p3.owner = ? ORDER BY p3.versionMajor DESC, p3.versionMinor DESC, p3.versionPatch DESC, p3.versionPrerelease DESC, p3.versionBuildmetadata DESC ), 0, 1) as owner"_
             "  FROM ZPM.Package p1 "_
             "  LEFT JOIN ZPM.UpLink ul ON ul.ID = p1.UpLink " _
             "  WHERE "_searchCondition_" "_ 
-            " AND p1.version = ( SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) "
+            " AND p1.version = ( SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name ORDER BY p2.versionMajor DESC, p2.versionMinor DESC, p2.versionPatch DESC, p2.versionPrerelease DESC, p2.versionBuildmetadata DESC ) "
 
   Set tStatement = ##class(%SQL.Statement).%New()
   Set tStatus = tStatement.%Prepare(sql)
@@ -599,7 +602,8 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
       "description": (tResult.description),
       "repository": (tResult.repository),
       "origin": (tResult.Host),
-      "versions": [(tResult.version)]
+      "versions": [(tResult.version)],
+      "is_owner":(tResult.owner)
     }
 
     If (manifest = "1") {

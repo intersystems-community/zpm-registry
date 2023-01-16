@@ -310,7 +310,8 @@ ClassMethod AllPackages() As %Status
    
   Set manifest = %request.Get("manifest","")
   Set allVersions = %request.Get("allVersions","")
-  Set tList = ##class(ZPM.Package).GetLatest(searchTerms, manifest, allVersions, .tSC) 
+  Set owner = ##class(ZPM.Owner).getId()
+  Set tList = ##class(ZPM.Package).GetLatest(searchTerms, manifest, allVersions, owner, .tSC) 
 
   If ($$$ISERR(tSC)) {
     Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST, tSC)

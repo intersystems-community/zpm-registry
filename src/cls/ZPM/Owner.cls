@@ -20,9 +20,14 @@ ClassMethod IsOwner(packageName As %String) As %Status
     Return $$$OK
 }
 
+ClassMethod getId() As %String
+{
+    Return $Username
+}
+
 ClassMethod SaveOwner(packageName, packageVersion) As %Status
 {
-    Set owner = $Username
+    Set owner = ..getId()
     Set package = ##class(ZPM.Package).NameVersionOpen(packageName, packageVersion)
     Set package.owner = owner
     Return package.%Save()
