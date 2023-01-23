@@ -34,9 +34,10 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/packages/:package/:version/:platformVersion/?" Method="GET" Call="Package" Cors="true" />
   <!-- Publish Package -->
   <Route Url="/packages" Method="POST" Call="PublishPackage" Cors="true" />
+  <!-- Unpublish Package Version -->
+  <Route Url="/packages/:package/:version" Method="Delete" Call="UnPublishPackageVersion" Cors="true" />
   <!-- Unpublish Package -->
-  <Route Url="/packages/:package/:version" Method="Delete" Call="UnPublishPackage" Cors="true" />
-
+  <Route Url="/packages/:package" Method="Delete" Call="UnPublishPackage" Cors="true" />
   
   <!-- Package Archive -->
   <Route Url="/download/:package/:platformVersion/:file" Method="GET" Call="GetArchive" Cors="true" />
@@ -115,7 +116,7 @@ ClassMethod Package(pkg As %String = "", version As %String = "", platformVersio
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
   Set package = ##class(ZPM.Package).NameVersionOpen(pkg, version, .tSC)
-  If $$$ISERR(tSC) || ('$IsObject(package)) {
+  If $$$ISERR(tSC) || ('$IsObject(package))||(package.deleted=1) {
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
   If package.deployed,platformVersion'="" {
@@ -141,7 +142,7 @@ ClassMethod PackageManifest(pkg As %String = "", version As %String = "", platfo
     Set package = ##class(ZPM.Package).NameVersionOpen(pkg, version)
   }
 
-  If ('$IsObject(package))||('package.manifest.Size) {
+  If ('$IsObject(package))||('package.manifest.Size)||(package.deleted=1) {
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
 
@@ -158,7 +159,7 @@ ClassMethod PackageInstaller(pkg As %String = "", version As %String = "") As %S
   }
 
   Set package = ##class(ZPM.Package).NameVersionOpen(pkg, version)
-  If ('$IsObject(package)) {
+  If ('$IsObject(package)||(package.deleted=1)) {
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
   If package.installer.Size {
@@ -170,8 +171,26 @@ ClassMethod PackageInstaller(pkg As %String = "", version As %String = "") As %S
   Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
 }
 
-/// Unpublish (delete) directly published package
-ClassMethod UnPublishPackage(pkg As %String = "", version As %String = "") As %Status
+ClassMethod UnPublishPackage(pkg As %String = "") As %Status
+{
+  Set tSC = $$$OK
+  Set tSC = ##class(ZPM.Owner).IsAuth()
+  If ($$$ISERR(tSC)) {
+    Return ..ReportHttpStatusCode(..#HTTP401UNAUTHORIZED, tSC)
+  }
+  Set pkg = $$$lcase(pkg)
+  If ('##class(ZPM.Package).NameExists(pkg)) {
+    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+  }
+  Set tSC = ##class(ZPM.Owner).IsOwner(pkg)
+  If ($$$ISERR(tSC)) {
+    Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, tSC)
+  }
+  Return ##class(ZPM.Package).DeletePackage(pkg)
+}
+
+/// Unpublish (delete) directly published package version 
+ClassMethod UnPublishPackageVersion(pkg As %String = "", version As %String = "") As %Status
 {
   Set tSC = $$$OK
   Set tSC = ##class(ZPM.Owner).IsAuth()
@@ -191,7 +210,7 @@ ClassMethod UnPublishPackage(pkg As %String = "", version As %String = "") As %S
     // only directly published package could be deleted
     Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
   }
-  Return ##class(ZPM.Package).DeleteExistingPackages(pkg, version, 1)
+  Return ##class(ZPM.Package).DeletePackageVersion(pkg, version)
 }
 
 ClassMethod PublishPackage() As %Status
@@ -211,7 +230,7 @@ ClassMethod PublishPackage() As %Status
     If ($$$ISERR(tSC)) {
       Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, tSC)
     }
-    If (##class(ZPM.Package).IsDeleted(name, version)) {
+    If (##class(ZPM.Package).MarkAsDeleted(name, version)) {
       Return ..ReportHttpStatusCode(..#HTTP500INTERNALSERVERERROR, $$$ERROR(5001,"This version was deleted, change version number"))
     }
 
@@ -282,7 +301,7 @@ ClassMethod GetArchive(name, platformVersion, fileName) As %Status
     Set package = ##class(ZPM.Package).NameVersionOpen(name, version, , .tSC)
   }
 
-  If '$IsObject(package)||('package.size) {
+  If '$IsObject(package)||('package.size)||(package.deleted=1) {
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
 
@@ -310,7 +329,7 @@ ClassMethod AllPackages() As %Status
    
   Set manifest = %request.Get("manifest","")
   Set allVersions = %request.Get("allVersions","")
-  Set owner = ##class(ZPM.Owner).getId()
+  Set owner = ##class(ZPM.Owner).GetId()
   Set tList = ##class(ZPM.Package).GetLatest(searchTerms, manifest, allVersions, owner, .tSC) 
 
   If ($$$ISERR(tSC)) {
