@@ -594,7 +594,7 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
   Set sql = "SELECT p1.name, p1.repository, p1.description, p1.version, ul.Host, IFNULL( (SELECT TOP 1 1 FROM ZPM.Package p3 WHERE p1.name=p3.name AND p3.owner = ? ORDER BY p3.versionMajor DESC, p3.versionMinor DESC, p3.versionPatch DESC, p3.versionPrerelease DESC, p3.versionBuildmetadata DESC ), 0, 1) as owner"_
             "  FROM ZPM.Package p1 "_
             "  LEFT JOIN ZPM.UpLink ul ON ul.ID = p1.UpLink " _
-            "  WHERE deleted = 0 OR deleted IS NULL AND "_searchCondition_" "_ 
+            "  WHERE (deleted = 0 OR deleted IS NULL) AND "_searchCondition_" "_ 
             " AND p1.version = ( SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name ORDER BY p2.versionMajor DESC, p2.versionMinor DESC, p2.versionPatch DESC, p2.versionPrerelease DESC, p2.versionBuildmetadata DESC ) "
 
   Set tStatement = ##class(%SQL.Statement).%New()
@@ -632,7 +632,8 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
     If (allVersions = "1") {
       Set tPkgInfo.allVersions = []
       Set sql2 = "SELECT version "_
-            " FROM ZPM.Package WHERE name = ? "_
+            " FROM ZPM.Package "_
+            " WHERE name = ? AND (deleted = 0 OR deleted IS NULL) "_
             " ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC"
       Set versionsResult = ##class(%SQL.Statement).%ExecDirect(, sql2, tResult.name)
       While versionsResult.%Next() {
