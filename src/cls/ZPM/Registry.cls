@@ -34,10 +34,8 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/packages/:package/:version/:platformVersion/?" Method="GET" Call="Package" Cors="true" />
   <!-- Publish Package -->
   <Route Url="/packages" Method="POST" Call="PublishPackage" Cors="true" />
-  <!-- Unpublish Package Version -->
-  <Route Url="/packages/:package/:version" Method="Delete" Call="UnPublishPackageVersion" Cors="true" />
   <!-- Unpublish Package -->
-  <Route Url="/packages/:package" Method="Delete" Call="UnPublishPackage" Cors="true" />
+  <Route Url="/packages/:package/:version" Method="Delete" Call="UnPublishPackageVersion" Cors="true" />
   
   <!-- Package Archive -->
   <Route Url="/download/:package/:platformVersion/:file" Method="GET" Call="GetArchive" Cors="true" />
@@ -171,24 +169,6 @@ ClassMethod PackageInstaller(pkg As %String = "", version As %String = "") As %S
   Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
 }
 
-ClassMethod UnPublishPackage(pkg As %String = "") As %Status
-{
-  Set tSC = $$$OK
-  Set tSC = ##class(ZPM.Owner).IsAuth()
-  If ($$$ISERR(tSC)) {
-    Return ..ReportHttpStatusCode(..#HTTP401UNAUTHORIZED, tSC)
-  }
-  Set pkg = $$$lcase(pkg)
-  If ('##class(ZPM.Package).NameExists(pkg)) {
-    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
-  }
-  Set tSC = ##class(ZPM.Owner).IsOwner(pkg)
-  If ($$$ISERR(tSC)) {
-    Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, tSC)
-  }
-  Return ##class(ZPM.Package).DeletePackage(pkg)
-}
-
 /// Unpublish (delete) directly published package version 
 ClassMethod UnPublishPackageVersion(pkg As %String = "", version As %String = "") As %Status
 {
@@ -198,19 +178,26 @@ ClassMethod UnPublishPackageVersion(pkg As %String = "", version As %String = ""
     Return ..ReportHttpStatusCode(..#HTTP401UNAUTHORIZED, tSC)
   }
   Set pkg = $$$lcase(pkg)
-  Set pPackage = ##class(ZPM.Package).NameVersionOpen(pkg, version)
-  If ('$IsObject(pPackage)) {
-    Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
-  }
   Set tSC = ##class(ZPM.Owner).IsOwner(pkg)
   If ($$$ISERR(tSC)) {
     Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, tSC)
   }
-  If (pPackage.UpLink'="") {
-    // only directly published package could be deleted
-    Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
+  If (version = "all") {
+    If ('##class(ZPM.Package).NameExists(pkg)) {
+      Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+    }
+    Return ##class(ZPM.Package).DeletePackage(pkg)
+  } Else {
+    Set pPackage = ##class(ZPM.Package).NameVersionOpen(pkg, version)
+    If ('$IsObject(pPackage)) {
+      Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+    }
+    If (pPackage.UpLink'="") {
+      // only directly published package could be deleted
+      Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
+    }
+    Return ##class(ZPM.Package).DeletePackageVersion(pkg, version)
   }
-  Return ##class(ZPM.Package).DeletePackageVersion(pkg, version)
 }
 
 ClassMethod PublishPackage() As %Status

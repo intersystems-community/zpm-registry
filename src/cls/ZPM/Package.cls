@@ -264,7 +264,14 @@ ClassMethod DeletePackageVersion(pkg As %String, version As %String) As %Status
   Set package = ##class(ZPM.Package).NameVersionOpen(pkg, version, , .tSC)
   Return:$$$ISERR(tSC) tSC
   Set package.deleted = 1
-  Return package.%Save()
+  Set tSC = package.%Save()
+  Return:$$$ISERR(tSC) tSC
+  Set count = 0
+  &sql(SELECT count(1) INTO :count FROM ZPM.Package WHERE name = :pkg AND (deleted IS NULL OR deleted != 1))
+  If (count = 0) {
+    Return ..DeletePackage(pkg)
+  }
+  Return $$$OK
 }
 
 ClassMethod DeletePackage(pkg As %String) As %Status
