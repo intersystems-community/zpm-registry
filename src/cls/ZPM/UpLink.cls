@@ -324,40 +324,17 @@ Method AddPackage(pPackage As %DynamicObject) As %Status
 ClassMethod ReadUplinksFromFile() As %Status
 {
     Set sc = $$$OK
-    Set tFilename = ##class(%SYSTEM.Util).InstallDirectory()_"zpm-registry.yaml"
-    If '##class(%File).Exists(tFilename) {
+    Set settingsFile = ##class(ZPM.Settings).%New()
+    If ('settingsFile.Exists) {
         // if registry config file doesn't exists - remove all uplinks and related cached pakages
         &sql(TRUNCATE TABLE ZPM.UpLink)
         Return sc 
     }
-    Try {
-        Set tFile = ##class(%File).%New(tFilename)
-        If ($Get(^zpmregistry("filemodified")) = tFile.DateModified) {
-            // DateTime hasn't changed - skip file 
-            Return sc
-        }
-        set obj = ##class(YAML.Utils).FileToJSON(tFilename, .sc)
-
-        $$$ThrowOnError(sc)
-        Set filemodificationTS = tFile.DateModified
-        If (..IsDefaultConfig(obj)) {
-            // namespace doesn't specified
-            Do ..SaveUplinks(obj."uplinks", filemodificationTS)
-        } Else{
-            //  namespace specified - search for current ns settings
-            Set iter = obj.%GetIterator()
-            Set ns = $$$lcase($NAMESPACE)
-            While iter.%GetNext(.key , .uplinks) {
-                If (ns = $$$lcase(key)) {
-                    Do ..SaveUplinks(uplinks."uplinks", filemodificationTS)
-                }
-            }
-        }
-    } Catch ex {
-        do ex.Log()
-        Set sc = ex.AsStatus()
+    If 'settingsFile.IsModified() {
+        // File hasn't changed - skip file 
+        Return sc
     }
-    Return sc
+    Return ..SaveUplinks(settingsFile.GetUplinks(), settingsFile.DateModified)
 }
 
 ClassMethod SaveUplinks(joUplinks As %DynamicObject, filemodificationTS As %String) As %Status
@@ -371,23 +348,6 @@ ClassMethod SaveUplinks(joUplinks As %DynamicObject, filemodificationTS As %Stri
     }
     Set ^zpmregistry("filemodified") = filemodificationTS
     quit $$$OK
-}
-
-ClassMethod IsDefaultConfig(obj As %DynamicObject) As %Boolean
-{
-    Try {
-        If (obj.%GetTypeOf("uplinks")="object") {
-            Set iter = obj.uplinks.%GetIterator()
-            If iter.%GetNext(.key , .joOneUplink) {
-                If (joOneUplink.%IsDefined("url")) {
-                    return 1
-                }
-            }
-        }
-    } Catch ex {
-        return 0
-    }
-    return 0
 }
 
 ClassMethod AddUplink(name, url, allowList, position) As %Status

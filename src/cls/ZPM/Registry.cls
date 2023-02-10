@@ -177,6 +177,10 @@ ClassMethod UnPublishPackageVersion(pkg As %String = "", version As %String = ""
   If ($$$ISERR(tSC)) {
     Return ..ReportHttpStatusCode(..#HTTP401UNAUTHORIZED, tSC)
   }
+  Set settingsFile = ##class(ZPM.Settings).%New()
+  If ('settingsFile.GetDeleteEnable()) {
+    Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, $$$ERROR(5001,"Delete not allowed for this registry"))
+  }
   Set pkg = $$$lcase(pkg)
   Set tSC = ##class(ZPM.Owner).IsOwner(pkg)
   If ($$$ISERR(tSC)) {
