@@ -52,6 +52,15 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 </Routes>
 }
 
+ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue As %Boolean) As %Status
+{
+  If ($$$lcase(pMethod)="options"),(1=$MATCH(pUrl,"^/packages/[^/]+/[^/]+/?$")) {
+    Set pContinue = 0
+    Return ..OptionsPackageVersion($PIECE(pUrl,"/",3),$PIECE(pUrl,"/",4))
+  }
+  Return ##super(pUrl, pMethod, .pContinue)
+}
+
 /// Package Manager general information
 ClassMethod GetInfo() As %Status
 {
@@ -167,6 +176,21 @@ ClassMethod PackageInstaller(pkg As %String = "", version As %String = "") As %S
     Return ..%ProcessResult($$$OK, package.installer)
   }
   Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
+}
+
+/// get available HTTP methods for /packages/:package/:version request
+ClassMethod OptionsPackageVersion(pkg As %String = "", version As %String = "") As %Status
+{
+  Set options = "OPTIONS,GET"
+  Set settingsFile = ##class(ZPM.Settings).%New()
+  Set tSCAuth = ##class(ZPM.Owner).IsAuth()
+  Set pkg = $$$lcase(pkg)
+  Set tSCOwner = ##class(ZPM.Owner).IsOwner(pkg)
+  If $$$ISOK(tSCAuth),$$$ISOK(tSCOwner),settingsFile.GetDeleteEnable() {
+    Set options = options_",DELETE"
+  }
+  Do %response.SetHeader("ALLOW",options)
+  Return $$$OK
 }
 
 /// Unpublish (delete) directly published package version 

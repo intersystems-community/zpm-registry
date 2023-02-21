@@ -130,8 +130,12 @@ Method GetDeleteEnable() As %Boolean
             Set delete = obj."delete-enabled"
         }
         If ($LISTFIND(trueList,delete)) {
+            Set ^zpmregistry(ns,"delete-enabled") = 1
             Return 1
+        } Else {
+            Set ^zpmregistry(ns,"delete-enabled") = 0
         }
+
     } Catch ex {
         Do ex.Log()
         Set sc = ex.AsStatus()
