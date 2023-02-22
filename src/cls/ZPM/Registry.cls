@@ -54,7 +54,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
 
 ClassMethod OnPreDispatch(pUrl As %String, pMethod As %String, ByRef pContinue As %Boolean) As %Status
 {
-  If ($$$lcase(pMethod)="options"),(1=$MATCH(pUrl,"^/packages/[^/]+/[^/]+/?$")) {
+  If ($$$lcase(pMethod)="options"),(1=$MATCH(pUrl,"^/packages/[^/]+/[^/]+/?$")),$PIECE(pUrl,"/",3)'="-" {
     Set pContinue = 0
     Return ..OptionsPackageVersion($PIECE(pUrl,"/",3),$PIECE(pUrl,"/",4))
   }
