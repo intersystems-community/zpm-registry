@@ -13,7 +13,7 @@ Property version As %String [ Required ];
 
 Index NameVersion On (name, version) [ IdKey, Unique ];
 
-Property owner As %String;
+Property owner As %String(%JSONINCLUDE = "NONE");
 
 Index Owner On owner;
 
@@ -68,6 +68,8 @@ ForeignKey UpLinkFK(UpLink) References ZPM.UpLink() [ OnDelete = cascade ];
 Index NameUpLink On (name, UpLink);
 
 Property deployed As %Boolean;
+
+Property deleted As %Boolean [ InitialExpression = 0 ];
 
 Method nameSet(value As %String) As %Status
 {
@@ -203,6 +205,26 @@ ClassMethod VersionFind(pkg As %String = "", version As %String = "") As %String
   }
 }
 
+Trigger DeletePackageTrigger [ Event = DELETE, Foreach = row/object ]
+{
+  // delete DeployedPackage
+  New id,package,name,version
+  Set id = {ID}
+  Set package = ##class(Package).%OpenId(id)
+  Set name = package.name
+  Set version = package.version
+  &sql(DELETE FROM ZPM.DeployedPackage WHERE name = :name AND version = :version)
+}
+
+ClassMethod MarkAsDeleted(name, version) As %Boolean
+{
+  Set package = ##class(ZPM.Package).NameVersionOpen(name, version, , .tSC)
+  If ($ISOBJECT(package) && (package.deleted = 1)) {
+    Return 1
+  }
+  Return 0
+}
+
 Method platformVersionsGet() As %ListOfDataTypes
 {
   Set tList = ##class(%ListOfDataTypes).%New()
@@ -227,13 +249,36 @@ Method platformVersionsGet() As %ListOfDataTypes
   Return tList
 }
 
-ClassMethod DeleteExistingPackages(pkg, version) As %Status
+ClassMethod DeleteExistingPackages(pkg As %String, version As %String) As %Status
 {
   // delete all "proxy" packages
   &sql(DELETE FROM ZPM.Package WHERE Name = :pkg AND UpLink IS NOT NULL)
+  Set tSC = ..NameVersionDelete(pkg, version)
+  Return:$$$ISERR(tSC) tSC
 
-  Do ..NameVersionDelete(pkg, version)
-  Return 1
+  Return $$$OK
+}
+
+ClassMethod DeletePackageVersion(pkg As %String, version As %String) As %Status
+{
+  Set package = ##class(ZPM.Package).NameVersionOpen(pkg, version, , .tSC)
+  Return:$$$ISERR(tSC) tSC
+  Set package.deleted = 1
+  Set tSC = package.%Save()
+  Return:$$$ISERR(tSC) tSC
+  Set count = 0
+  &sql(SELECT count(1) INTO :count FROM ZPM.Package WHERE name = :pkg AND (deleted IS NULL OR deleted != 1))
+  If (count = 0) {
+    Return ..DeletePackage(pkg)
+  }
+  Return $$$OK
+}
+
+ClassMethod DeletePackage(pkg As %String) As %Status
+{
+  &sql(DELETE FROM ZPM.Package WHERE name = :pkg)
+  If SQLCODE'=0 Return $$$ERROR($$$SQLError, SQLCODE, $g(%msg))
+  Return $$$OK
 }
 
 ClassMethod versionValidate(pkg As %String = "", version As %String = "") As %String
@@ -520,16 +565,18 @@ ClassMethod LoadFromGitHub(Url = "")
 }
 
 /// returns latest versions of packages 
-ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "", allVersions As %String = "", Output pStatus As %Status) As %DynamicArray
+ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "", allVersions As %String = "", owner As %String = "", Output pStatus As %Status) As %DynamicArray
 {
   Set pStatus = 1
+  Set params = 1
+  Set params(params) = owner
+
   If ( '($ClassName(searchTerms)="%Library.DynamicArray" ) || (searchTerms.%Size()=0) ) {
     // empty query
     Set searchCondition = " ( 1=1 ) "
   } Else {
     Set searchCondition = " ( "
     Set iter = searchTerms.%GetIterator()
-    Set params = 0
     While iter.%GetNext(.key , .value ) {
       If (key=0) {
         Set searchCondition = searchCondition _ " ((p1.name %MATCHES ?) OR (p1.description %MATCHES ?) OR (p1.keywords %MATCHES ?)) "
@@ -543,11 +590,12 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
     }
     Set searchCondition = searchCondition_ " ) "
   }
-  Set sql = "SELECT p1.name, p1.repository, p1.description, p1.version, ul.Host "_
+
+  Set sql = "SELECT p1.name, p1.repository, p1.description, p1.version, ul.Host, IFNULL( (SELECT TOP 1 1 FROM ZPM.Package p3 WHERE p1.name=p3.name AND p3.owner = ? ORDER BY p3.versionMajor DESC, p3.versionMinor DESC, p3.versionPatch DESC, p3.versionPrerelease DESC, p3.versionBuildmetadata DESC ), 0, 1) as owner"_
             "  FROM ZPM.Package p1 "_
             "  LEFT JOIN ZPM.UpLink ul ON ul.ID = p1.UpLink " _
-            "  WHERE "_searchCondition_" "_ 
-            " AND p1.version = ( SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC ) "
+            "  WHERE (deleted = 0 OR deleted IS NULL) AND "_searchCondition_" "_ 
+            " AND p1.version = ( SELECT TOP 1 version FROM ZPM.Package p2 WHERE p1.name=p2.name ORDER BY p2.versionMajor DESC, p2.versionMinor DESC, p2.versionPatch DESC, p2.versionPrerelease DESC, p2.versionBuildmetadata DESC ) "
 
   Set tStatement = ##class(%SQL.Statement).%New()
   Set tStatus = tStatement.%Prepare(sql)
@@ -567,7 +615,8 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
       "description": (tResult.description),
       "repository": (tResult.repository),
       "origin": (tResult.Host),
-      "versions": [(tResult.version)]
+      "versions": [(tResult.version)],
+      "is_owner":(tResult.owner)
     }
 
     If (manifest = "1") {
@@ -583,7 +632,8 @@ ClassMethod GetLatest(searchTerms As %DynamicArray = "", manifest As %String = "
     If (allVersions = "1") {
       Set tPkgInfo.allVersions = []
       Set sql2 = "SELECT version "_
-            " FROM ZPM.Package WHERE name = ? "_
+            " FROM ZPM.Package "_
+            " WHERE name = ? AND (deleted = 0 OR deleted IS NULL) "_
             " ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC"
       Set versionsResult = ##class(%SQL.Statement).%ExecDirect(, sql2, tResult.name)
       While versionsResult.%Next() {
@@ -681,6 +731,9 @@ Storage Default
 </Value>
 <Value name="22">
 <Value>platformVersion</Value>
+</Value>
+<Value name="23">
+<Value>deleted</Value>
 </Value>
 </Data>
 <Data name="dependencies">
