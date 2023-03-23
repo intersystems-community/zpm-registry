@@ -10,22 +10,22 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <!-- Server Info -->
   <Route Url="/" Method="GET" Call="GetInfo" Cors="true"/>
   <Route Url="/_ping" Method="GET" Call="Ping" Cors="true"/>
-  
+
   <!-- Reset registry for debug purposes, limited access -->
   <Route Url="/_reset" Method="GET" Call="Reset" Cors="true"/>
-  
+
   <!-- Swagger specs -->
   <Route Url="/_spec" Method="GET" Call="SwaggerSpec" Cors="true"/>
-  
+
   <!-- All packages -->
   <Route Url="/packages/-/all" Method="GET" Call="AllPackages" Cors="true" />
-  
+
   <!-- Package manifest -->
   <Route Url="/packages/:package/:version/:platformVersion/manifest" Method="GET" Call="PackageManifest" Cors="true" />
   <Route Url="/packages/:package/:version/manifest" Method="GET" Call="PackageManifest" Cors="true" />
   <!-- Package installer -->
   <Route Url="/packages/:package/:version/installer" Method="GET" Call="PackageInstaller" Cors="true" />
-  
+
   <!-- Package information -->
   <Route Url="/packages/:package/?" Method="GET" Call="Package" Cors="true" />
   <!-- Package information with specified version -->
@@ -36,7 +36,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <Route Url="/packages" Method="POST" Call="PublishPackage" Cors="true" />
   <!-- Unpublish Package -->
   <Route Url="/packages/:package/:version" Method="Delete" Call="UnPublishPackageVersion" Cors="true" />
-  
+
   <!-- Package Archive -->
   <Route Url="/download/:package/:platformVersion/:file" Method="GET" Call="GetArchive" Cors="true" />
   <!-- <Route Url="/download/:package/-/:file" Method="GET" Call="GetArchive" Cors="true" /> -->
@@ -45,7 +45,7 @@ XData UrlMap [ XMLNamespace = "http://www.intersystems.com/urlmap" ]
   <!-- Temp url, update package, should be combined with "POST /packages"-->
   <Route Url="/package" Method="POST" Call="UpdatePackage" Cors="true" />
 
-  
+
   <!-- Analytics -->
   <Route Url="/collect/:action" Method="POST" Call="CollectAnalytics" Cors="true" />
 
@@ -137,7 +137,7 @@ ClassMethod Package(pkg As %String = "", version As %String = "", platformVersio
 
 ClassMethod PackageManifest(pkg As %String = "", version As %String = "", platformVersion As %String = "") As %Status
 {
-  Set pkg = $$$lcase(pkg)    
+  Set pkg = $$$lcase(pkg)
   Set version = ##class(ZPM.Package).VersionFind(pkg, version)
   If (version = "") {
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
@@ -159,7 +159,7 @@ ClassMethod PackageManifest(pkg As %String = "", version As %String = "", platfo
 
 ClassMethod PackageInstaller(pkg As %String = "", version As %String = "") As %Status
 {
-  Set pkg = $$$lcase(pkg)  
+  Set pkg = $$$lcase(pkg)
   Set version = ##class(ZPM.Package).VersionFind(pkg, version)
   If (version = "") {
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
@@ -185,7 +185,20 @@ ClassMethod OptionsPackageVersion(pkg As %String = "", version As %String = "") 
   Set settingsFile = ##class(ZPM.Settings).%New()
   Set tSCAuth = ##class(ZPM.Owner).IsAuth()
   Set pkg = $$$lcase(pkg)
-  Set tSCOwner = ##class(ZPM.Owner).IsOwner(pkg)
+
+  If ('##class(ZPM.Package).NameExists(pkg)) {
+    Do %response.SetHeader("ALLOW",options)
+    Return $$$OK
+  }
+
+  If ( ($$$lcase(version)'="all") && '##class(ZPM.Package).NameVersionExists(pkg, version) ) {
+    // version doesn't exit
+    Do %response.SetHeader("ALLOW",options)
+    Return $$$OK
+  }
+
+  Set tSCOwner = ##class(ZPM.Owner).IsOwner(pkg, "delete")
+
   If $$$ISOK(tSCAuth),$$$ISOK(tSCOwner),settingsFile.GetDeleteEnable() {
     Set options = options_",DELETE"
   }
@@ -193,7 +206,7 @@ ClassMethod OptionsPackageVersion(pkg As %String = "", version As %String = "") 
   Return $$$OK
 }
 
-/// Unpublish (delete) directly published package version 
+/// Unpublish (delete) directly published package version
 ClassMethod UnPublishPackageVersion(pkg As %String = "", version As %String = "") As %Status
 {
   Set tSC = $$$OK
@@ -206,7 +219,7 @@ ClassMethod UnPublishPackageVersion(pkg As %String = "", version As %String = ""
     Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, $$$ERROR(5001,"Delete not allowed for this registry"))
   }
   Set pkg = $$$lcase(pkg)
-  Set tSC = ##class(ZPM.Owner).IsOwner(pkg)
+  Set tSC = ##class(ZPM.Owner).IsOwner(pkg, "delete")
   If ($$$ISERR(tSC)) {
     Return ..ReportHttpStatusCode(..#HTTP403FORBIDDEN, tSC)
   }
@@ -252,22 +265,23 @@ ClassMethod PublishPackage() As %Status
     If (%request.ContentType '= ..#CONTENTTYPEJSON) {
       Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
     }
-    
+
     If ##class(ZPM.Package).NameVersionExists(name, version, .id) {
-      Set package = ##class(ZPM.Package).%OpenId(id) 
+      Set package = ##class(ZPM.Package).%OpenId(id)
+      Set package.UpLink = ""
     }
     Else {
-      Set package = ##class(ZPM.Package).%New() 
+      Set package = ##class(ZPM.Package).%New()
     }
 
     $$$ThrowOnError(package.%JSONImport(%request.Content))
     $$$ThrowOnError(package.UpdateDescriptionFromManifest())
     If deployed {
       If ##class(ZPM.DeployedPackage).NameVersionPlatformExists(name, version, platformVersion, .id) {
-        Set deployedPackage = ##class(ZPM.DeployedPackage).%OpenId(id, , .tSC) 
+        Set deployedPackage = ##class(ZPM.DeployedPackage).%OpenId(id, , .tSC)
       }
       Else {
-        Set deployedPackage = ##class(ZPM.DeployedPackage).%New() 
+        Set deployedPackage = ##class(ZPM.DeployedPackage).%New()
       }
       $$$ThrowOnError(deployedPackage.%JSONImport(%request.Content))
       $$$ThrowOnError(deployedPackage.manifest.CopyFrom(package.manifest))
@@ -289,7 +303,7 @@ ClassMethod PublishPackage() As %Status
 
 ClassMethod UpdatePackage() As %Status
 {
-  If (%request.ContentType '= ..#CONTENTTYPEJSON) {    
+  If (%request.ContentType '= ..#CONTENTTYPEJSON) {
     Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
   }
   Return ##class(ZPM.Package).UpdatePackage(%request.Content)
@@ -341,11 +355,11 @@ ClassMethod AllPackages() As %Status
     Set searchTerms = [].%FromJSON(%request.Get("q"))
   } Catch ex {}
   $$$ThrowOnError(##class(ZPM.UpLink).UpdatePackagesFromAllUpLinks())
-   
+
   Set manifest = %request.Get("manifest","")
   Set allVersions = %request.Get("allVersions","")
   Set owner = ##class(ZPM.Owner).GetId()
-  Set tList = ##class(ZPM.Package).GetLatest(searchTerms, manifest, allVersions, owner, .tSC) 
+  Set tList = ##class(ZPM.Package).GetLatest(searchTerms, manifest, allVersions, owner, .tSC)
 
   If ($$$ISERR(tSC)) {
     Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST, tSC)
@@ -355,17 +369,17 @@ ClassMethod AllPackages() As %Status
 
 ClassMethod CollectAnalytics(action As %String = "") As %Status
 {
-  If (%request.ContentType '= ..#CONTENTTYPEJSON) {    
+  If (%request.ContentType '= ..#CONTENTTYPEJSON) {
     Return ..ReportHttpStatusCode(..#HTTP400BADREQUEST)
   }
-  If (action = "") {    
+  If (action = "") {
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
   Set token = %request.GetCgiEnv("HTTP_INSTALLTOKEN")
   If token'="", $Data(^IRIS.TempZPMRInst(token)) {
     Kill ^IRIS.TempZPMRInst(token)
     Return ##class(ZPM.Analytics.Event).SaveEvent(action, ..GetRemoteAddr(), %request.Content)
-  } 
+  }
   Return $$$ERROR(5001, "Invalid token")
 }
 
