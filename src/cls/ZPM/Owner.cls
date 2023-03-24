@@ -6,11 +6,11 @@ ClassMethod IsAuth() As %Status
 {
     If ($Username="UnknownUser") {
         Return $$$ERROR($$$GeneralError, "Authentification required")
-    } 
+    }
     Return $$$OK
 }
 
-ClassMethod IsOwner(packageName As %String) As %Status
+ClassMethod IsOwner(packageName As %String, action As %String = "") As %Status
 {
     Set owner = ""
     &sql(SELECT TOP 1 owner INTO :owner FROM ZPM.Package WHERE name = :packageName ORDER BY publishTS)
