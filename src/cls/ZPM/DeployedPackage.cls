@@ -75,6 +75,9 @@ Storage Default
 <Value name="20">
 <Value>deployed</Value>
 </Value>
+<Value name="21">
+<Value>deleted</Value>
+</Value>
 </Data>
 <Data name="dependencies">
 <Attribute>dependencies</Attribute>

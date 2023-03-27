@@ -1,4 +1,4 @@
-FROM intersystems/iris-community:2022.2.0.345.0
+FROM intersystems/iris-community:2023.1.0.185.0
 
 WORKDIR /opt/registry
 
