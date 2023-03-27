@@ -13,7 +13,7 @@ ClassMethod IsAuth() As %Status
 ClassMethod IsOwner(packageName As %String, action As %String = "") As %Status
 {
     Set owner = ""
-    &sql(SELECT TOP 1 owner INTO :owner FROM ZPM.Package WHERE name = :packageName ORDER BY publishTS)
+    &sql(SELECT TOP 1 owner INTO :owner FROM ZPM.Package WHERE name = :packageName ORDER BY publishTS DESC)
     If ( (owner'="") && (owner '= $Username) ){
         Return $$$ERROR($$$GeneralError, "Invalid package owner")
     }
