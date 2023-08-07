@@ -37,7 +37,7 @@ zpm:USER>repo -n registry -r -url https://registry.yourdomain.com
 ```
 
 ## Settings
-To configure the registry, utilize the zpm-registry.yaml file located within the IRIS installation folder. Retrieve the IRIS directory in which the file should reside using the following command: write ##class(%SYSTEM.Util).InstallDirectory().
+To configure the registry, utilize the zpm-registry.yaml file located within the IRIS installation folder. Retrieve the IRIS directory in which the file should reside using the following command: `write ##class(%SYSTEM.Util).InstallDirectory()`.
 
 
 ## Proxy-Registry
