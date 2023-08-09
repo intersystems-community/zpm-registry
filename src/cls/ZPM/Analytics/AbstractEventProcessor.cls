@@ -1,7 +1,7 @@
-Class ZPM.Analytics.AbstractEventProcessor
+Class ZPM.Analytics.AbstractEventProcessor [ Abstract ]
 {
 
-ClassMethod Process(event) As %Status
+ClassMethod Process(event) As %Status [ Abstract ]
 {
 }
 
