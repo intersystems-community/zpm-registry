@@ -3,7 +3,7 @@ Class ZPM.Analytics.Event Extends (%Persistent, %JSON.Adaptor)
 
 Parameter DSTIME = "AUTO";
 
-/// Server date and time, saving the data
+/// Server date and time, saving the data 
 Property TS As %PosixTime(%JSONINCLUDE = "none") [ SqlComputeCode = {set {*}=##class(%Library.PosixTime).CurrentTimeStamp()}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
 /// Event type: download, install, uninstall
@@ -48,10 +48,8 @@ ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObj
         Set event.IP = ip
         Do event.%JSONImport(json)
         $$$ThrowOnError(event.%Save())
-        // get all ZPM.Analytics.AbstractEventProcessor subclasses
-        set rs = ##class(%Dictionary.ClassDefinitionQuery).SubclassOfFunc("ZPM.Analytics.AbstractEventProcessor")
-        while (rs.%Next()) {
-            do $classmethod(rs.%GetData(1), "Process", event)
+        If ##class(%Dictionary.CompiledClass).%ExistsId("ZPM.Analytics.IP") {
+            Do ##class(ZPM.Analytics.IP).SetGeo(event, ip)
         }
         $$$ThrowOnError(event.%Save())
         Return $$$OK
