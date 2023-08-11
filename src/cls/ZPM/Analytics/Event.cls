@@ -40,6 +40,22 @@ Property Region As %String(%JSONINCLUDE = "none");
 
 Property City As %String(%JSONINCLUDE = "none");
 
+ClassMethod ExecuteEventProcessors() As %Status
+{
+    Set subclasses = $PARAMETER("ZPM.Analytics.AbstractEventProcessor","SubClasses")
+    Set list = $ListFromString(subclasses,",")
+    For i=1:1:$listlength(list){
+        Try {
+            $$$ThrowOnError($Classmethod($listget(list,i),"Process"))
+        } Catch ex {
+            If (ex.Name '= "<CLASS DOES NOT EXIST>") {
+                Throw ex
+            }
+        }
+    }
+    return $$$OK
+}
+
 ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObject) As %Status
 {
     Try {
@@ -48,12 +64,7 @@ ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObj
         Set event.IP = ip
         Do event.%JSONImport(json)
         $$$ThrowOnError(event.%Save())
-        // get all ZPM.Analytics.AbstractEventProcessor subclasses
-        set rs = ##class(%Dictionary.ClassDefinitionQuery).SubclassOfFunc("ZPM.Analytics.AbstractEventProcessor")
-        while (rs.%Next()) {
-            do $classmethod(rs.%GetData(1), "Process", event)
-        }
-        $$$ThrowOnError(event.%Save())
+        $$$ThrowOnError(..ExecuteEventProcessors())
         Return $$$OK
     } Catch ex {
         Do ex.Log()
