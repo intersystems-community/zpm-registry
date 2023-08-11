@@ -3,7 +3,7 @@ Class ZPM.Analytics.Event Extends (%Persistent, %JSON.Adaptor)
 
 Parameter DSTIME = "AUTO";
 
-/// Server date and time, saving the data 
+/// Server date and time, saving the data
 Property TS As %PosixTime(%JSONINCLUDE = "none") [ SqlComputeCode = {set {*}=##class(%Library.PosixTime).CurrentTimeStamp()}, SqlComputed, SqlComputeOnChange = %%INSERT ];
 
 /// Event type: download, install, uninstall
@@ -40,6 +40,22 @@ Property Region As %String(%JSONINCLUDE = "none");
 
 Property City As %String(%JSONINCLUDE = "none");
 
+ClassMethod ExecuteEventProcessors(event As ZPM.Analytics.Event) As %Status
+{
+    Set subclasses = $PARAMETER("ZPM.Analytics.AbstractEventProcessor","SubClasses")
+    Set list = $ListFromString(subclasses,",")
+    For i=1:1:$listlength(list){
+        Try {
+            $$$ThrowOnError($Classmethod($listget(list,i), "Process", event))
+        } Catch ex {
+            If (ex.Name '= "<CLASS DOES NOT EXIST>") {
+                Throw ex
+            }
+        }
+    }
+    return $$$OK
+}
+
 ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObject) As %Status
 {
     Try {
@@ -48,10 +64,7 @@ ClassMethod SaveEvent(action As %String, ip As %String = "", json As %DynamicObj
         Set event.IP = ip
         Do event.%JSONImport(json)
         $$$ThrowOnError(event.%Save())
-        If ##class(%Dictionary.CompiledClass).%ExistsId("ZPM.Analytics.IP") {
-            Do ##class(ZPM.Analytics.IP).SetGeo(event, ip)
-        }
-        $$$ThrowOnError(event.%Save())
+        $$$ThrowOnError(..ExecuteEventProcessors(event))
         Return $$$OK
     } Catch ex {
         Do ex.Log()
