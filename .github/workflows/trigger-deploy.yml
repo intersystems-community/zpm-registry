@@ -14,8 +14,7 @@ on:
 jobs:
   trigger-zpm-deployment:
     name: Trigger zpm-registry-deployment via REST API
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-22.04
     steps:
     - name: REST POST call
       run: |-
