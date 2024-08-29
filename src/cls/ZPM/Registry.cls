@@ -117,8 +117,10 @@ ClassMethod Package(pkg As %String = "", version As %String = "", platformVersio
   If (version="") {
     $$$ThrowOnError(##class(ZPM.UpLink).FindPackageInAllUpLinks(pkg))
   }
+  Set tIncludePrerelease = %request.Get("includePrerelease", 0)
+  Set tIncludeSnapshots = %request.Get("includeSnapshots", 0)
 
-  Set version = ##class(ZPM.Package).VersionFind(pkg, version)
+  Set version = ##class(ZPM.Package).VersionFind(pkg, version, tIncludePrerelease, tIncludeSnapshots)
   If (version = "") {
     Return ..ReportHttpStatusCode(..#HTTP404NOTFOUND)
   }
