@@ -140,7 +140,18 @@ Method versionsGet() As %ListOfDataTypes
   Set tList = ##class(%ListOfDataTypes).%New()
 
   Set name = ..name
-  &sql(SELECT %DLIST(version) INTO :versions FROM Package WHERE name = :name)
+  Set tPrerelease = $Select($Data(%request) # 2: %request.Get("includePrerelease", 0), 1: 1)
+  Set tSnapshot = $Select($Data(%request) # 2: %request.Get("includeSnapshots", 0), 1: 1)
+  &sql(
+    SELECT %DLIST(version) INTO :versions 
+    FROM Package 
+    WHERE name = :name
+    AND (
+      versionPrerelease IS NULL 
+      OR (:tSnapshot = 1 AND LOWER(versionPrerelease) = 'snapshot')
+      OR (:tPrerelease = 1 AND LOWER(versionPrerelease) <> 'snapshot')
+    )
+  )
   If (SQLCODE=0) {
     Set ptr = 0
     While $ListNext(versions, ptr, version) {
@@ -158,12 +169,19 @@ Method versionsGet() As %ListOfDataTypes
   Return tList
 }
 
-ClassMethod VersionFind(pkg As %String = "", version As %String = "") As %String
+ClassMethod VersionFind(pkg As %String = "", version As %String = "", pPrerelease As %Boolean = 1, pSnapshot As %Boolean = 1) As %String
 {
   If (version = "") || (version = "latest") || (version = "*") {
     // package was published directly in this registry - return the last version
-    &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package WHERE Name = :pkg AND UpLink IS NULL
-          ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC
+    &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package 
+        WHERE Name = :pkg 
+          AND UpLink IS NULL
+          AND (
+            versionPrerelease IS NULL 
+            OR (:pSnapshot = 1 AND LOWER(versionPrerelease) = 'snapshot')
+            OR (:pPrerelease = 1 AND LOWER(versionPrerelease) <> 'snapshot')
+          )
+        ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC
     )
     If SQLCODE=0 { 
       // found 
@@ -171,7 +189,13 @@ ClassMethod VersionFind(pkg As %String = "", version As %String = "") As %String
     } Else {
       // find the latest version in UpLinks 
       Do ##class(ZPM.UpLink).LoadPackageFromAllUpLinks(pkg, "latest")
-      &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package WHERE Name = :pkg
+      &sql(SELECT TOP 1 Version INTO :version FROM ZPM.Package 
+          WHERE Name = :pkg 
+            AND (
+              versionPrerelease IS NULL 
+              OR (:pSnapshot = 1 AND LOWER(versionPrerelease) = 'snapshot')
+              OR (:pPrerelease = 1 AND LOWER(versionPrerelease) <> 'snapshot')
+            )
           ORDER BY versionMajor DESC, versionMinor DESC, versionPatch DESC, versionPrerelease DESC, versionBuildmetadata DESC
       )
       If SQLCODE=0 { 
