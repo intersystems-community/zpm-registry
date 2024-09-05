@@ -140,8 +140,8 @@ Method versionsGet() As %ListOfDataTypes
   Set tList = ##class(%ListOfDataTypes).%New()
 
   Set name = ..name
-  Set tPrerelease = $Select($Data(%request) # 2: %request.Get("includePrerelease", 0), 1: 1)
-  Set tSnapshot = $Select($Data(%request) # 2: %request.Get("includeSnapshots", 0), 1: 1)
+  Set tPrerelease = $Select($Data(%request) # 2: %request.Get("includePrerelease", 1), 1: 1)
+  Set tSnapshot = $Select($Data(%request) # 2: %request.Get("includeSnapshots", 1), 1: 1)
   &sql(
     SELECT %DLIST(version) INTO :versions 
     FROM Package 
