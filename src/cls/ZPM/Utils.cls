@@ -111,13 +111,14 @@ ClassMethod SQLsetup() As %Status
 
 ClassMethod AddSSLConfiguration() As %Status
 {
+    Set sc = $$$OK
     Set host = ..#SSLCONFIGNAME
     New $NAMESPACE
     Set $NAMESPACE = "%SYS"
     If '##class(Security.SSLConfigs).Exists(host) {
-        Do ##class(Security.SSLConfigs).Create(host)
+        Set sc = ##class(Security.SSLConfigs).Create(host)
     }
-    Return host
+    Return sc
 }
 
 }
