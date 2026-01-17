@@ -43,13 +43,14 @@ XData setup
 
 ClassMethod AddSSLConfiguration()
 {
+    Set sc = $$$OK
     Set host = "zpmregistry"
     New $NAMESPACE
     Set $NAMESPACE = "%SYS"
     If '##class(Security.SSLConfigs).Exists(host) {
-        Do ##class(Security.SSLConfigs).Create(host)
+        Set sc = ##class(Security.SSLConfigs).Create(host)
     }
-    Return host
+    Return sc
 }
 
 ClassMethod setup(ByRef pVars, pLogLevel As %Integer = 3, pInstaller As %Installer.Installer, pLogger As %Installer.AbstractLogger) As %Status [ CodeMode = objectgenerator, Internal ]
